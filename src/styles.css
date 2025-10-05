@@ -1,0 +1,19 @@
+
+:root{
+  --dp-ink:#0F3F3B;
+  --dp-orange:#F39A3D;
+  --dp-cream:#F9F4ED;
+  --dp-teal:#2AA198;
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+html,body,#root{height:100%}
+.container-nice{ @apply max-w-5xl mx-auto px-4; }
+.card{ @apply bg-white rounded-2xl shadow-soft border; border-color: rgb(15 63 59 / 0.05); }
+.btn{ @apply inline-flex items-center gap-2 rounded-xl px-4 py-2 font-medium transition; }
+.btn-primary{ @apply bg-ink text-white hover:bg-teal; }
+.btn-secondary{ @apply bg-orange text-white hover:opacity-90; }
+.input{ @apply w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2; border-color: rgb(15 63 59 / 0.10); }
+.label{ @apply text-sm; color: rgb(15 63 59 / 0.70); }
+a{ @apply text-ink; }

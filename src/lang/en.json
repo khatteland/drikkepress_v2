@@ -1,0 +1,38 @@
+{
+  "nav": {
+    "createEvent": "Create event",
+    "myProfile": "My profile",
+    "logout": "Log out",
+    "loginGoogle": "Sign in with Google",
+    "loginMicrosoft": "Microsoft"
+  },
+  "profile": {
+    "title": "My Profile",
+    "name": "Full name",
+    "phone": "Phone number",
+    "avatar": "Avatar",
+    "upload": "Upload avatar",
+    "save": "Save changes",
+    "saved": "Profile updated"
+  },
+  "events": {
+    "myEvents": "My Events",
+    "edit": "Edit",
+    "delete": "Delete",
+    "open": "Open",
+    "confirmDelete": "Are you sure you want to delete this event?",
+    "addToCalendar": "Add to Calendar",
+    "publicParticipants": "Show participants publicly",
+    "location": "Location",
+    "starts": "Starts",
+    "ends": "Ends"
+  },
+  "participation": {
+    "going": "Going",
+    "interested": "Interested",
+    "cant": "Can't go"
+  },
+  "common": {
+    "loading": "Loading..."
+  }
+}
