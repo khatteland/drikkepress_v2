@@ -1,0 +1,18 @@
+{
+  "auth": {
+    "welcome": "Welcome to Drikkepress",
+    "description": "Log in or sign up to create and join events.",
+    "signInGoogle": "Sign in with Google",
+    "signUpGoogle": "Sign up with Google",
+    "loading": "Please wait...",
+    "error": "Something went wrong. Please try again."
+  },
+  "participation": {
+    "going": "Going",
+    "interested": "Interested",
+    "cant": "Can't go"
+  },
+  "events": {
+    "addToCalendar": "Add to Calendar"
+  }
+}
