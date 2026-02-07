@@ -178,6 +178,44 @@ CREATE TABLE notification_preferences (
 );
 
 -- ============================================================
+-- EVENT ADMINS (co-admin support)
+-- ============================================================
+CREATE TABLE event_admins (
+    id          SERIAL PRIMARY KEY,
+    event_id    INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(event_id, user_id)
+);
+
+CREATE INDEX idx_event_admins_event ON event_admins(event_id);
+CREATE INDEX idx_event_admins_user ON event_admins(user_id);
+
+-- ============================================================
+-- HELPER: is_event_admin (creator OR co-admin)
+-- ============================================================
+CREATE OR REPLACE FUNCTION is_event_admin(p_event_id INTEGER, p_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF p_user_id IS NULL THEN RETURN FALSE; END IF;
+
+    IF EXISTS (SELECT 1 FROM events WHERE id = p_event_id AND creator_id = p_user_id) THEN
+        RETURN TRUE;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM event_admins WHERE event_id = p_event_id AND user_id = p_user_id) THEN
+        RETURN TRUE;
+    END IF;
+
+    RETURN FALSE;
+END;
+$$;
+
+-- ============================================================
 -- ACCESS CHECK FUNCTION (used by RLS policies)
 -- ============================================================
 CREATE OR REPLACE FUNCTION check_event_access(p_event_id INTEGER, p_user_id UUID)
@@ -196,6 +234,11 @@ BEGIN
 
     -- Creator
     IF EXISTS (SELECT 1 FROM events WHERE id = p_event_id AND creator_id = p_user_id) THEN
+        RETURN TRUE;
+    END IF;
+
+    -- Co-admin
+    IF EXISTS (SELECT 1 FROM event_admins WHERE event_id = p_event_id AND user_id = p_user_id) THEN
         RETURN TRUE;
     END IF;
 
@@ -276,6 +319,7 @@ BEGIN
         'max_attendees', ev.max_attendees,
         'has_access', true,
         'qr_enabled', ev.qr_enabled,
+        'is_admin', is_event_admin(p_event_id, current_uid),
         'creator_name', (SELECT name FROM profiles WHERE id = ev.creator_id),
         'going_count', (SELECT COUNT(*) FROM rsvps WHERE event_id = p_event_id AND status = 'going' AND kicked_at IS NULL),
         'interested_count', (SELECT COUNT(*) FROM rsvps WHERE event_id = p_event_id AND status = 'interested' AND kicked_at IS NULL),
@@ -593,13 +637,11 @@ SET search_path = public
 AS $$
 DECLARE
     current_uid UUID;
-    ev_creator UUID;
     rsvp_row RECORD;
 BEGIN
     current_uid := auth.uid();
 
-    SELECT creator_id INTO ev_creator FROM events WHERE id = p_event_id;
-    IF ev_creator IS NULL OR ev_creator != current_uid THEN
+    IF NOT is_event_admin(p_event_id, current_uid) THEN
         RETURN jsonb_build_object('status', 'error', 'code', 'not_creator');
     END IF;
 
@@ -649,13 +691,11 @@ SET search_path = public
 AS $$
 DECLARE
     current_uid UUID;
-    ev_creator UUID;
     rsvp_row RECORD;
 BEGIN
     current_uid := auth.uid();
 
-    SELECT creator_id INTO ev_creator FROM events WHERE id = p_event_id;
-    IF ev_creator IS NULL OR ev_creator != current_uid THEN
+    IF NOT is_event_admin(p_event_id, current_uid) THEN
         RETURN jsonb_build_object('status', 'error', 'code', 'not_creator');
     END IF;
 
@@ -697,7 +737,7 @@ BEGIN
     current_uid := auth.uid();
 
     SELECT * INTO ev FROM events WHERE id = p_event_id;
-    IF ev.id IS NULL OR ev.creator_id != current_uid THEN
+    IF ev.id IS NULL OR NOT is_event_admin(p_event_id, current_uid) THEN
         RETURN jsonb_build_object('status', 'error', 'code', 'not_creator');
     END IF;
 
@@ -719,12 +759,10 @@ SET search_path = public
 AS $$
 DECLARE
     current_uid UUID;
-    ev_creator UUID;
 BEGIN
     current_uid := auth.uid();
 
-    SELECT creator_id INTO ev_creator FROM events WHERE id = p_event_id;
-    IF ev_creator IS NULL OR ev_creator != current_uid THEN
+    IF NOT is_event_admin(p_event_id, current_uid) THEN
         RETURN jsonb_build_object('status', 'error', 'code', 'not_creator');
     END IF;
 
@@ -882,6 +920,25 @@ CREATE POLICY "Users can insert own prefs"
 
 CREATE POLICY "Users can update own prefs"
     ON notification_preferences FOR UPDATE USING (user_id = auth.uid());
+
+-- Event Admins
+ALTER TABLE event_admins ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Creator and admins can read event_admins"
+    ON event_admins FOR SELECT USING (
+        EXISTS (SELECT 1 FROM events WHERE id = event_id AND creator_id = auth.uid())
+        OR user_id = auth.uid()
+    );
+
+CREATE POLICY "Creator can add event_admins"
+    ON event_admins FOR INSERT WITH CHECK (
+        EXISTS (SELECT 1 FROM events WHERE id = event_id AND creator_id = auth.uid())
+    );
+
+CREATE POLICY "Creator can remove event_admins"
+    ON event_admins FOR DELETE USING (
+        EXISTS (SELECT 1 FROM events WHERE id = event_id AND creator_id = auth.uid())
+    );
 
 -- ============================================================
 -- ENABLE REALTIME on notifications

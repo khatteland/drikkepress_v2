@@ -872,6 +872,95 @@ function AccessRequestManager({ eventId }) {
 }
 
 // ============================================================
+// ADMIN MANAGER (Creator only — manage co-admins)
+// ============================================================
+
+function AdminManager({ eventId }) {
+  const { t } = useI18n();
+  const [admins, setAdmins] = useState([]);
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from("event_admins")
+      .select("*, profiles(name, email, avatar_url)")
+      .eq("event_id", eventId);
+    setAdmins(data || []);
+  }, [eventId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    setError(""); setSuccess("");
+    if (!email.trim()) return;
+
+    // Look up user by email
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, name, email")
+      .eq("email", email.trim().toLowerCase())
+      .single();
+
+    if (!profile) {
+      setError(t("admin.notFound"));
+      return;
+    }
+
+    // Check if already admin
+    const existing = admins.find(a => a.user_id === profile.id);
+    if (existing) {
+      setError(t("admin.alreadyAdmin"));
+      return;
+    }
+
+    const { error: err } = await supabase
+      .from("event_admins")
+      .insert({ event_id: eventId, user_id: profile.id });
+
+    if (err) { setError(err.message); return; }
+    setSuccess(t("admin.added"));
+    setEmail("");
+    load();
+    setTimeout(() => setSuccess(""), 3000);
+  };
+
+  const handleRemove = async (id) => {
+    await supabase.from("event_admins").delete().eq("id", id);
+    load();
+  };
+
+  return (
+    <div className="admin-section">
+      <h3>{t("admin.title")}</h3>
+      <form className="invite-form" onSubmit={handleAdd}>
+        <input type="email" placeholder={t("admin.placeholder")} value={email} onChange={(e) => setEmail(e.target.value)} />
+        <button type="submit" className="btn btn-primary btn-sm">{t("admin.submit")}</button>
+      </form>
+      {error && <div className="form-error" style={{ marginTop: 8 }}>{error}</div>}
+      {success && <div style={{ color: "#16a34a", fontSize: 14, marginTop: 8 }}>{success}</div>}
+      {admins.length > 0 ? (
+        <div className="invitation-list">
+          {admins.map((a) => (
+            <div key={a.id} className="invitation-item">
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Avatar name={a.profiles?.name} avatarUrl={a.profiles?.avatar_url} size={24} />
+                <span>{a.profiles?.name} ({a.profiles?.email})</span>
+              </div>
+              <button className="btn btn-danger btn-sm" onClick={() => handleRemove(a.id)}>{t("admin.remove")}</button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="no-invitations">{t("admin.empty")}</div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // QR TOGGLE SECTION (Creator only)
 // ============================================================
 
@@ -919,14 +1008,14 @@ function QrTicketSection({ event }) {
         {showQr ? t("qr.hideMyQr") : t("qr.showMyQr")}
       </button>
       {showQr && (
-        <div className="qr-code-wrapper">
-          <QRCodeSVG value={qrValue} size={200} level="M" />
+        <div className="qr-code-wrapper qr-code-animate">
+          <QRCodeSVG value={qrValue} size={240} level="M" />
         </div>
       )}
       {event.my_checked_in_at ? (
-        <div className="qr-checked-in-badge">{t("qr.checkedIn")}</div>
+        <div className="qr-checked-in-badge">&#10003; {t("qr.checkedIn")}</div>
       ) : (
-        <div className="qr-not-checked-in">{t("qr.notCheckedIn")}</div>
+        <div className="qr-not-checked-in">&#9675; {t("qr.notCheckedIn")}</div>
       )}
     </div>
   );
@@ -953,7 +1042,7 @@ function CheckinPage({ eventId, user, onNavigate }) {
   useEffect(() => {
     supabase.rpc("get_event_detail", { p_event_id: eventId }).then(({ data }) => {
       if (data) setEventTitle(data.title);
-      if (data && data.creator_id !== user?.id) onNavigate("event-detail", { eventId });
+      if (data && !data.is_admin) onNavigate("event-detail", { eventId });
     });
     loadCheckinList();
   }, [eventId, user, onNavigate, loadCheckinList]);
@@ -1011,10 +1100,10 @@ function CheckinPage({ eventId, user, onNavigate }) {
 
   const getResultMessage = () => {
     if (!result) return null;
-    if (result.status === "success") return { className: "success", text: t("qr.scanSuccess"), name: result.user_name };
-    if (result.status === "already") return { className: "already", text: t("qr.scanAlready"), name: result.user_name };
-    if (result.code === "kicked") return { className: "error", text: t("qr.scanKicked") };
-    return { className: "error", text: t("qr.scanInvalid") };
+    if (result.status === "success") return { className: "success", icon: "\u2705", text: t("qr.scanSuccess"), name: result.user_name };
+    if (result.status === "already") return { className: "already", icon: "\u26a0\ufe0f", text: t("qr.scanAlready"), name: result.user_name };
+    if (result.code === "kicked") return { className: "error", icon: "\u274c", text: t("qr.scanKicked") };
+    return { className: "error", icon: "\u274c", text: t("qr.scanInvalid") };
   };
 
   const resultMsg = getResultMessage();
@@ -1040,6 +1129,7 @@ function CheckinPage({ eventId, user, onNavigate }) {
 
         {resultMsg && (
           <div className={`checkin-result ${resultMsg.className}`}>
+            <span className="checkin-result-icon">{resultMsg.icon}</span>
             <div className="checkin-result-info">
               <strong>{resultMsg.text}</strong>
               {resultMsg.name && <span>{resultMsg.name}</span>}
@@ -1053,6 +1143,11 @@ function CheckinPage({ eventId, user, onNavigate }) {
             <div className="checkin-list-stats">
               <strong>{checkinData.total_checked_in}</strong> {t("qr.checkedInCount")} {t("qr.of")} <strong>{checkinData.total_going}</strong>
             </div>
+            {checkinData.total_going > 0 && (
+              <div className="checkin-progress-bar">
+                <div className="checkin-progress-fill" style={{ width: `${(checkinData.total_checked_in / checkinData.total_going) * 100}%` }} />
+              </div>
+            )}
             {(checkinData.attendees || []).map((a) => (
               <div key={a.user_id} className="checkin-attendee">
                 <Avatar name={a.name} avatarUrl={a.avatar_url} size={32} />
@@ -1204,6 +1299,7 @@ function EventDetailPage({ eventId, user, onNavigate }) {
 
   // FULL VIEW
   const isCreator = user && user.id === event.creator_id;
+  const isAdmin = event.is_admin || isCreator;
 
   const handleKick = async (userId) => {
     if (!confirm(t("kick.confirm"))) return;
@@ -1247,18 +1343,18 @@ function EventDetailPage({ eventId, user, onNavigate }) {
           <button className="btn btn-secondary btn-sm" onClick={handleShare}>{t("detail.share")}</button>
           <a className="btn btn-secondary btn-sm" href={generateGoogleCalendarUrl(event)} target="_blank" rel="noopener noreferrer">{t("cal.google")}</a>
           <button className="btn btn-secondary btn-sm" onClick={() => generateIcsFile(event)}>{t("cal.ics")}</button>
+          {isAdmin && (
+            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("edit-event", { eventId: event.id })}>{t("detail.edit")}</button>
+          )}
           {isCreator && (
-            <>
-              <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("edit-event", { eventId: event.id })}>{t("detail.edit")}</button>
-              <button className="btn btn-danger btn-sm" onClick={handleDelete}>{t("detail.delete")}</button>
-              {event.qr_enabled && (
-                <button className="btn btn-primary btn-sm" onClick={() => onNavigate("checkin", { eventId: event.id })}>{t("qr.openScanner")}</button>
-              )}
-            </>
+            <button className="btn btn-danger btn-sm" onClick={handleDelete}>{t("detail.delete")}</button>
+          )}
+          {isAdmin && event.qr_enabled && (
+            <button className="btn btn-primary btn-sm" onClick={() => onNavigate("checkin", { eventId: event.id })}>{t("qr.openScanner")}</button>
           )}
         </div>
 
-        {isCreator && (
+        {isAdmin && (
           <QrToggleSection eventId={eventId} qrEnabled={event.qr_enabled} onToggle={loadEvent} />
         )}
 
@@ -1323,7 +1419,7 @@ function EventDetailPage({ eventId, user, onNavigate }) {
                 <h3>{t("detail.goingTitle")} ({event.going_users.length})</h3>
                 <div className="attendees-list">
                   {event.going_users.map((u) => (
-                    isCreator && u.id !== user.id ? (
+                    isAdmin && u.id !== user.id ? (
                       <span key={u.id} className="attendee-chip-with-action">
                         <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
                         {u.name}
@@ -1346,7 +1442,7 @@ function EventDetailPage({ eventId, user, onNavigate }) {
                 <h3 style={{ marginTop: 16 }}>{t("detail.interestedTitle")} ({event.interested_users.length})</h3>
                 <div className="attendees-list">
                   {event.interested_users.map((u) => (
-                    isCreator && u.id !== user.id ? (
+                    isAdmin && u.id !== user.id ? (
                       <span key={u.id} className="attendee-chip-with-action">
                         <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
                         {u.name}
@@ -1378,11 +1474,15 @@ function EventDetailPage({ eventId, user, onNavigate }) {
           </div>
         )}
 
-        {isCreator && event.visibility === "semi_public" && (
+        {isAdmin && event.visibility === "semi_public" && (
           <>
             <InvitationManager eventId={eventId} />
             <AccessRequestManager eventId={eventId} />
           </>
+        )}
+
+        {isCreator && (
+          <AdminManager eventId={eventId} />
         )}
 
         <div className="comments-section">

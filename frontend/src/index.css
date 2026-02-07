@@ -1790,7 +1790,7 @@ body {
 }
 
 /* ============================================================
-   QR TOGGLE & TICKET
+   QR TOGGLE & TICKET (polished)
    ============================================================ */
 
 .qr-toggle-section {
@@ -1802,6 +1802,13 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-left: 4px solid #6c63ff;
+}
+
+.qr-toggle-section::before {
+  content: "\1F4F1";
+  font-size: 20px;
+  margin-right: 12px;
 }
 
 .qr-toggle-label {
@@ -1819,32 +1826,45 @@ body {
 .qr-ticket-section {
   background: white;
   border-radius: 12px;
-  padding: 20px;
+  padding: 24px;
   margin-bottom: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   text-align: center;
+  border: 2px solid transparent;
+  background-image: linear-gradient(white, white), linear-gradient(135deg, #6c63ff, #a78bfa, #6c63ff);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
 }
 
 .qr-ticket-section h3 {
-  font-size: 16px;
+  font-size: 18px;
   margin-bottom: 12px;
   color: #1a1a2e;
 }
 
 .qr-code-wrapper {
   display: inline-block;
-  padding: 16px;
+  padding: 20px;
   background: white;
   border-radius: 12px;
   border: 2px solid #f0f2f5;
-  margin: 12px 0;
+  margin: 16px 0;
+}
+
+.qr-code-animate {
+  animation: qrAppear 0.3s ease;
+}
+
+@keyframes qrAppear {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .qr-checked-in-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 10px 20px;
   background: #dcfce7;
   color: #166534;
   border-radius: 20px;
@@ -1857,7 +1877,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 10px 20px;
   background: #f0f2f5;
   color: #666;
   border-radius: 20px;
@@ -1866,7 +1886,7 @@ body {
 }
 
 /* ============================================================
-   CHECK-IN PAGE
+   CHECK-IN PAGE (polished)
    ============================================================ */
 
 .checkin-page {
@@ -1892,28 +1912,35 @@ body {
 .checkin-scanner-reader {
   width: 100%;
   margin-bottom: 16px;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
+  border: 3px solid #6c63ff;
 }
 
 .checkin-scanner-reader video {
   width: 100%;
-  border-radius: 8px;
+  border-radius: 9px;
 }
 
 .checkin-result {
-  padding: 16px;
-  border-radius: 10px;
+  padding: 20px;
+  border-radius: 12px;
   margin-bottom: 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  animation: fadeIn 0.3s ease;
+  gap: 14px;
+  animation: scanBounce 0.4s ease;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes scanBounce {
+  0% { opacity: 0; transform: scale(0.85); }
+  60% { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.checkin-result-icon {
+  font-size: 28px;
+  flex-shrink: 0;
 }
 
 .checkin-result.success {
@@ -1937,12 +1964,12 @@ body {
 
 .checkin-result-info strong {
   display: block;
-  font-size: 16px;
+  font-size: 18px;
   margin-bottom: 2px;
 }
 
 .checkin-result-info span {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .checkin-list {
@@ -1963,7 +1990,7 @@ body {
   display: flex;
   gap: 8px;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   font-size: 14px;
   color: #666;
 }
@@ -1971,6 +1998,22 @@ body {
 .checkin-list-stats strong {
   color: #1a1a2e;
   font-size: 18px;
+}
+
+.checkin-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.checkin-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #6c63ff, #a78bfa);
+  transition: width 0.5s ease;
 }
 
 .checkin-attendee {
@@ -2010,7 +2053,7 @@ body {
 }
 
 /* ============================================================
-   KICK USERS
+   KICK USERS (polished — hide on desktop, show on hover)
    ============================================================ */
 
 .attendee-chip-with-action {
@@ -2026,7 +2069,7 @@ body {
 
 .attendee-kick-btn {
   background: none;
-  border: 1px solid #ef4444;
+  border: 1px solid transparent;
   color: #ef4444;
   font-size: 11px;
   padding: 2px 8px;
@@ -2034,6 +2077,12 @@ body {
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s;
+  opacity: 0;
+}
+
+.attendee-chip-with-action:hover .attendee-kick-btn {
+  opacity: 1;
+  border-color: #ef4444;
 }
 
 .attendee-kick-btn:hover {
@@ -2050,6 +2099,25 @@ body {
   font-size: 14px;
   color: #991b1b;
   font-weight: 500;
+}
+
+/* ============================================================
+   ADMIN SECTION (co-admins)
+   ============================================================ */
+
+.admin-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border-left: 4px solid #6c63ff;
+}
+
+.admin-section h3 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #1a1a2e;
 }
 
 /* ============================================================
@@ -2122,7 +2190,12 @@ body {
   }
 
   .event-actions {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .event-actions .btn {
+    min-height: 44px;
   }
 
   .map-container {
@@ -2178,9 +2251,43 @@ body {
     padding: 0;
   }
 
+  .checkin-scanner {
+    width: 100%;
+  }
+
+  .checkin-scanner .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
   .qr-toggle-section {
-    flex-direction: column;
+    flex-direction: row;
     gap: 12px;
-    text-align: center;
+  }
+
+  /* Kick buttons: always visible on mobile */
+  .attendee-kick-btn {
+    opacity: 1;
+    border-color: #ccc;
+    color: #999;
+  }
+
+  .attendee-kick-btn:hover,
+  .attendee-kick-btn:active {
+    border-color: #ef4444;
+    color: #ef4444;
+  }
+
+  /* Touch targets */
+  .btn {
+    min-height: 44px;
+  }
+
+  .rsvp-btn {
+    min-height: 44px;
+  }
+
+  .btn-sm {
+    min-height: 36px;
   }
 }

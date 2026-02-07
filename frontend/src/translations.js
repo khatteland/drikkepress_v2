@@ -219,6 +219,16 @@ export const translations = {
     "kick.confirm": "Er du sikker på at du vil fjerne denne brukeren?",
     "kick.notice": "Du er fjernet fra dette eventet av arrangøren.",
 
+    // Co-admins
+    "admin.title": "Medadministratorer",
+    "admin.placeholder": "Legg til medadmin med e-post...",
+    "admin.submit": "Legg til",
+    "admin.remove": "Fjern",
+    "admin.added": "Medadmin lagt til",
+    "admin.empty": "Ingen medadministratorer enn\u00e5",
+    "admin.notFound": "Bruker ikke funnet",
+    "admin.alreadyAdmin": "Allerede admin",
+
     // General
     "loading": "Laster...",
   },
@@ -437,6 +447,16 @@ export const translations = {
     "kick.button": "Kick",
     "kick.confirm": "Are you sure you want to remove this user?",
     "kick.notice": "You have been removed from this event by the organizer.",
+
+    // Co-admins
+    "admin.title": "Co-Admins",
+    "admin.placeholder": "Add co-admin by email...",
+    "admin.submit": "Add",
+    "admin.remove": "Remove",
+    "admin.added": "Co-admin added",
+    "admin.empty": "No co-admins yet",
+    "admin.notFound": "No user found with this email",
+    "admin.alreadyAdmin": "Already an admin",
 
     // General
     "loading": "Loading...",
