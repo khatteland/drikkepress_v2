@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://drikkepress.com/sitemap.xml

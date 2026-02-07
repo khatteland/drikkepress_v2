@@ -3,15 +3,84 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Drikkepress</title>
+
+    <!-- Primary SEO -->
+    <title>Drikkepress — Oppdag og organiser events i Norge</title>
+    <meta name="description" content="Finn og organiser events i Norge. Opprett arrangementer, inviter venner, QR-innsjekking, kart og mer. Gratis eventplattform for alle." />
+    <meta name="keywords" content="events, arrangementer, Norge, Oslo, fest, konsert, event app, QR innsjekking, gratis, organisere, delta" />
+    <meta name="author" content="Drikkepress" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://drikkepress.com" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://drikkepress.com" />
+    <meta property="og:title" content="Drikkepress — Oppdag og organiser events i Norge" />
+    <meta property="og:description" content="Finn og organiser events i Norge. Opprett arrangementer, inviter venner, QR-innsjekking og mer. Helt gratis." />
+    <meta property="og:image" content="https://drikkepress.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="nb_NO" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta property="og:site_name" content="Drikkepress" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Drikkepress — Oppdag og organiser events i Norge" />
+    <meta name="twitter:description" content="Finn og organiser events i Norge. Opprett arrangementer, inviter venner, QR-innsjekking og mer." />
+    <meta name="twitter:image" content="https://drikkepress.com/og-image.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Theme color -->
+    <meta name="theme-color" content="#1a1a2e" />
+    <meta name="msapplication-TileColor" content="#1a1a2e" />
+
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
           crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
             integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
             crossorigin=""></script>
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Drikkepress",
+      "url": "https://drikkepress.com",
+      "description": "Oppdag og organiser events i Norge. Gratis eventplattform med QR-innsjekking, kart og invitasjoner.",
+      "applicationCategory": "SocialNetworkingApplication",
+      "operatingSystem": "All",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "NOK"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "Drikkepress",
+        "url": "https://drikkepress.com"
+      },
+      "inLanguage": ["nb", "en"],
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://drikkepress.com/?search={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
   </head>
   <body>
+    <noscript>
+      <h1>Drikkepress — Events i Norge</h1>
+      <p>Finn og organiser events i Norge. Opprett arrangementer, inviter venner, bruk QR-innsjekking og mer. Helt gratis.</p>
+      <p>Denne appen krever JavaScript for å fungere. Aktiver JavaScript i nettleseren din.</p>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
