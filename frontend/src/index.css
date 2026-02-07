@@ -23,8 +23,8 @@ body {
    ============================================================ */
 
 .navbar {
-  background: #f5f0e8;
-  color: #1a4a4a;
+  background: white;
+  color: #0d4447;
   padding: 0 24px;
   height: 64px;
   display: flex;
@@ -33,8 +33,8 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-  border-bottom: 1px solid rgba(26, 74, 74, 0.1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid #e8e0d0;
 }
 
 .navbar-brand {
@@ -62,8 +62,8 @@ body {
 
 .navbar-links button {
   background: transparent;
-  color: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #0d4447;
+  border: 1px solid rgba(13, 68, 71, 0.15);
   padding: 8px 16px;
   border-radius: 8px;
   cursor: pointer;
@@ -73,20 +73,20 @@ body {
 }
 
 .navbar-links button:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(13, 68, 71, 0.05);
+  color: #0d4447;
+  border-color: rgba(13, 68, 71, 0.3);
 }
 
 .navbar-links .btn-primary {
-  background: #1a4a4a;
-  border-color: #1a4a4a;
+  background: #0d4447;
+  border-color: #0d4447;
   color: white;
 }
 
 .navbar-links .btn-primary:hover {
-  background: #153d3d;
-  border-color: #153d3d;
+  background: #0a3638;
+  border-color: #0a3638;
 }
 
 .navbar-user {
@@ -98,7 +98,7 @@ body {
 .navbar-user-name {
   font-size: 14px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.9);
+  color: #0d4447;
 }
 
 /* Mobile navbar */
@@ -110,8 +110,8 @@ body {
 
 .navbar-hamburger {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
+  border: 1px solid rgba(13, 68, 71, 0.15);
+  color: #0d4447;
   font-size: 20px;
   padding: 6px 10px;
   border-radius: 8px;
@@ -120,7 +120,7 @@ body {
 }
 
 .navbar-hamburger:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(13, 68, 71, 0.05);
 }
 
 .navbar-mobile-menu {
@@ -896,9 +896,9 @@ body {
    ============================================================ */
 
 .navbar-links button.active {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.4);
-  color: white;
+  background: rgba(13, 68, 71, 0.08);
+  border-color: rgba(13, 68, 71, 0.3);
+  color: #0d4447;
   font-weight: 600;
 }
 
@@ -907,14 +907,14 @@ body {
   display: flex;
   gap: 2px;
   margin-left: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(13, 68, 71, 0.15);
   border-radius: 6px;
   overflow: hidden;
 }
 
 .lang-picker button {
   background: transparent;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(13, 68, 71, 0.5);
   border: none !important;
   padding: 4px 8px;
   font-size: 11px;
@@ -925,12 +925,12 @@ body {
 }
 
 .lang-picker button.active {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
+  background: rgba(13, 68, 71, 0.1);
+  color: #0d4447;
 }
 
 .lang-picker button:hover {
-  color: white;
+  color: #0d4447;
 }
 
 /* ============================================================
@@ -1504,7 +1504,7 @@ body {
   height: 32px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(13, 68, 71, 0.2);
   cursor: pointer;
 }
 
@@ -1519,7 +1519,7 @@ body {
 .notification-bell-btn {
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.85);
+  color: #0d4447;
   padding: 8px;
   border-radius: 8px;
   cursor: pointer;
@@ -1532,8 +1532,8 @@ body {
 }
 
 .notification-bell-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  background: rgba(13, 68, 71, 0.05);
+  color: #0d4447;
 }
 
 .notification-badge {
@@ -2294,13 +2294,13 @@ body {
     gap: 4px;
     width: 100%;
     padding: 8px 0 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid #e8e0d0;
   }
 
   .navbar-mobile-menu button {
     background: transparent;
-    color: rgba(255, 255, 255, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #0d4447;
+    border: 1px solid rgba(13, 68, 71, 0.1);
     padding: 12px 16px;
     border-radius: 8px;
     cursor: pointer;
@@ -2312,13 +2312,13 @@ body {
 
   .navbar-mobile-menu button:hover,
   .navbar-mobile-menu button.active {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    background: rgba(13, 68, 71, 0.05);
+    color: #0d4447;
   }
 
   .navbar-mobile-menu .btn-primary {
-    background: #1a4a4a;
-    border-color: #1a4a4a;
+    background: #0d4447;
+    border-color: #0d4447;
     color: white;
     text-align: center;
     font-weight: 600;
