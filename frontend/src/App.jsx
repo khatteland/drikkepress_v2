@@ -76,6 +76,67 @@ async function geocodeAddress(address, lang) {
 }
 
 // ============================================================
+// CALENDAR HELPERS
+// ============================================================
+
+function generateGoogleCalendarUrl(event) {
+  const startDate = event.date.replace(/-/g, "");
+  const startTime = (event.time || "00:00").replace(/:/g, "").slice(0, 4) + "00";
+  let endTime;
+  if (event.end_time) {
+    endTime = event.end_time.replace(/:/g, "").slice(0, 4) + "00";
+  } else {
+    const h = parseInt(startTime.slice(0, 2)) + 2;
+    endTime = String(h).padStart(2, "0") + startTime.slice(2);
+  }
+  const dates = `${startDate}T${startTime}/${startDate}T${endTime}`;
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: event.title,
+    dates,
+    location: event.location || "",
+    details: event.description || "",
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+function generateIcsFile(event) {
+  const startDate = event.date.replace(/-/g, "");
+  const startTime = (event.time || "00:00").replace(/:/g, "").slice(0, 4) + "00";
+  let endTime;
+  if (event.end_time) {
+    endTime = event.end_time.replace(/:/g, "").slice(0, 4) + "00";
+  } else {
+    const h = parseInt(startTime.slice(0, 2)) + 2;
+    endTime = String(h).padStart(2, "0") + startTime.slice(2);
+  }
+  const uid = `${event.id}-${startDate}@drikkepress`;
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Drikkepress//Event//EN",
+    "BEGIN:VEVENT",
+    `UID:${uid}`,
+    `DTSTART:${startDate}T${startTime}`,
+    `DTEND:${startDate}T${endTime}`,
+    `SUMMARY:${event.title}`,
+    `LOCATION:${event.location || ""}`,
+    `DESCRIPTION:${(event.description || "").replace(/\n/g, "\\n")}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${event.title.replace(/[^a-zA-Z0-9]/g, "_")}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
 // URL ROUTING (History API)
 // ============================================================
 
@@ -231,6 +292,171 @@ function Avatar({ name, avatarUrl, size = 24, className = "avatar" }) {
 }
 
 // ============================================================
+// NOTIFICATION BELL
+// ============================================================
+
+function NotificationBell({ user, onNavigate }) {
+  const { t, lang } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const bellRef = useRef(null);
+
+  const loadNotifications = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("notifications")
+      .select("*, actor:profiles!actor_id(name)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setNotifications(data || []);
+    setUnreadCount((data || []).filter((n) => !n.is_read).length);
+  }, [user]);
+
+  useEffect(() => { loadNotifications(); }, [loadNotifications]);
+
+  // Realtime subscription
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("notifications-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        () => { loadNotifications(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, loadNotifications]);
+
+  // Click outside to close
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (bellRef.current && !bellRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const handleClick = async (notif) => {
+    if (!notif.is_read) {
+      await supabase.from("notifications").update({ is_read: true }).eq("id", notif.id);
+    }
+    setOpen(false);
+    onNavigate("event-detail", { eventId: notif.event_id });
+    loadNotifications();
+  };
+
+  const markAllRead = async () => {
+    await supabase.rpc("mark_all_notifications_read");
+    loadNotifications();
+  };
+
+  const getNotifText = (notif) => {
+    const actor = notif.actor?.name || "";
+    switch (notif.type) {
+      case "rsvp": return <><strong>{actor}</strong> {t("notif.rsvp")}</>;
+      case "comment": return <><strong>{actor}</strong> {t("notif.comment")}</>;
+      case "access_request": return <><strong>{actor}</strong> {t("notif.access_request")}</>;
+      case "invitation": return <><strong>{actor}</strong> {t("notif.invitation")}</>;
+      case "reminder": return t("notif.reminder");
+      case "waitlist_promoted": return t("notif.waitlist_promoted");
+      default: return notif.type;
+    }
+  };
+
+  return (
+    <div className="notification-bell" ref={bellRef}>
+      <button className="notification-bell-btn" onClick={() => setOpen(!open)}>
+        &#128276;
+        {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
+      </button>
+      {open && (
+        <div className="notification-dropdown">
+          <div className="notification-dropdown-header">
+            <h3>{t("notif.title")}</h3>
+            {unreadCount > 0 && <button onClick={markAllRead}>{t("notif.markAllRead")}</button>}
+          </div>
+          <div className="notification-list">
+            {notifications.length === 0 ? (
+              <div className="notification-empty">{t("notif.empty")}</div>
+            ) : (
+              notifications.map((n) => (
+                <div key={n.id} className={`notification-item ${n.is_read ? "" : "unread"}`} onClick={() => handleClick(n)}>
+                  <div className="notification-item-dot" />
+                  <div className="notification-item-content">
+                    <p>{getNotifText(n)}</p>
+                    <div className="notification-item-time">{timeAgo(n.created_at, lang)}</div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// NOTIFICATION PREFERENCES
+// ============================================================
+
+function NotificationPreferences({ user }) {
+  const { t } = useI18n();
+  const [prefs, setPrefs] = useState(null);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("notification_preferences")
+      .select("*")
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) setPrefs(data);
+      });
+  }, [user]);
+
+  const togglePref = async (key) => {
+    const updated = { ...prefs, [key]: !prefs[key] };
+    setPrefs(updated);
+    await supabase
+      .from("notification_preferences")
+      .update({ [key]: updated[key] })
+      .eq("user_id", user.id);
+  };
+
+  if (!prefs) return null;
+
+  const items = [
+    { key: "email_rsvp", label: t("prefs.emailRsvp") },
+    { key: "email_comment", label: t("prefs.emailComment") },
+    { key: "email_access_request", label: t("prefs.emailAccessRequest") },
+    { key: "email_invitation", label: t("prefs.emailInvitation") },
+    { key: "email_reminder", label: t("prefs.emailReminder") },
+  ];
+
+  return (
+    <div className="notification-prefs">
+      <h3>{t("prefs.title")}</h3>
+      <p>{t("prefs.subtitle")}</p>
+      {items.map((item) => (
+        <div key={item.key} className="pref-item">
+          <span>{item.label}</span>
+          <label className="toggle-switch">
+            <input type="checkbox" checked={prefs[item.key]} onChange={() => togglePref(item.key)} />
+            <span className="toggle-slider" />
+          </label>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================
 // NAVBAR
 // ============================================================
 
@@ -253,6 +479,7 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
             <button className="btn-primary" onClick={() => onNavigate("create-event")}>
               {t("nav.newEvent")}
             </button>
+            <NotificationBell user={user} onNavigate={onNavigate} />
             <button className={currentPage === "profile" ? "active" : ""} onClick={() => onNavigate("profile")}>
               {t("nav.profile")}
             </button>
@@ -299,6 +526,12 @@ function EventCard({ event, onClick }) {
         <div className="event-card-footer">
           <div className="event-card-attendees">
             <strong>{event.going_count || 0}</strong> {t("events.attending")}
+            {event.max_attendees && (
+              <span className="event-card-capacity"> / {event.max_attendees} {t("detail.spots")}</span>
+            )}
+            {event.max_attendees && (event.going_count || 0) >= event.max_attendees && (
+              <span className="event-card-full-badge">{t("events.full")}</span>
+            )}
             {(event.interested_count || 0) > 0 && (
               <> · <strong>{event.interested_count}</strong> {t("events.interested")}</>
             )}
@@ -797,6 +1030,8 @@ function EventDetailPage({ eventId, user, onNavigate }) {
 
         <div className="event-actions">
           <button className="btn btn-secondary btn-sm" onClick={handleShare}>{t("detail.share")}</button>
+          <a className="btn btn-secondary btn-sm" href={generateGoogleCalendarUrl(event)} target="_blank" rel="noopener noreferrer">{t("cal.google")}</a>
+          <button className="btn btn-secondary btn-sm" onClick={() => generateIcsFile(event)}>{t("cal.ics")}</button>
           {isCreator && (
             <>
               <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("edit-event", { eventId: event.id })}>{t("detail.edit")}</button>
@@ -821,7 +1056,35 @@ function EventDetailPage({ eventId, user, onNavigate }) {
           <div className="rsvp-stats">
             <span><strong>{event.going_count}</strong> {t("detail.goingCount")}</span>
             <span><strong>{event.interested_count}</strong> {t("detail.interestedCount")}</span>
+            {(event.waitlisted_count || 0) > 0 && (
+              <span><strong>{event.waitlisted_count}</strong> {t("detail.waitlistedCount")}</span>
+            )}
           </div>
+          {event.max_attendees && (
+            <div className="capacity-bar-wrapper">
+              <div className="capacity-bar">
+                <div
+                  className="capacity-bar-fill"
+                  style={{
+                    width: `${Math.min((event.going_count / event.max_attendees) * 100, 100)}%`,
+                    background: event.going_count >= event.max_attendees ? "#ef4444" : event.going_count >= event.max_attendees * 0.8 ? "#f59e0b" : "#22c55e",
+                  }}
+                />
+              </div>
+              <div className="capacity-text">
+                <span>{event.going_count} / {event.max_attendees} {t("detail.spots")}</span>
+                {event.going_count >= event.max_attendees && <span className="capacity-full">{t("detail.full")}</span>}
+              </div>
+            </div>
+          )}
+          {event.my_rsvp === "waitlisted" && (
+            <div className="waitlist-notice">
+              <strong>{t("detail.waitlisted")}</strong>
+              {event.waitlisted_users && event.waitlisted_users.length > 0 && (
+                <span>{t("detail.waitlistPosition")} {event.waitlisted_users.findIndex((u) => u.id === user?.id) + 1}</span>
+              )}
+            </div>
+          )}
         </div>
 
         {(event.going_users?.length > 0 || event.interested_users?.length > 0) && (
@@ -845,6 +1108,19 @@ function EventDetailPage({ eventId, user, onNavigate }) {
                 <div className="attendees-list">
                   {event.interested_users.map((u) => (
                     <span key={u.id} className="attendee-chip">
+                      <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
+                      {u.name}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+            {event.waitlisted_users?.length > 0 && (
+              <>
+                <h3 style={{ marginTop: 16 }}>{t("detail.waitlistTitle")} ({event.waitlisted_users.length})</h3>
+                <div className="attendees-list">
+                  {event.waitlisted_users.map((u) => (
+                    <span key={u.id} className="attendee-chip waitlisted">
                       <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
                       {u.name}
                     </span>
@@ -927,6 +1203,7 @@ function EventFormPage({ eventId, user, onNavigate }) {
   const [form, setForm] = useState({
     title: "", description: "", date: "", time: "", end_time: "",
     location: "", category: "Technology", visibility: "public",
+    max_attendees: "",
   });
   const [images, setImages] = useState([]);
   const [error, setError] = useState("");
@@ -943,6 +1220,7 @@ function EventFormPage({ eventId, user, onNavigate }) {
             time: data.time?.slice(0, 5) || "", end_time: data.end_time?.slice(0, 5) || "",
             location: data.location, category: data.category,
             visibility: data.visibility || "public",
+            max_attendees: data.max_attendees != null ? String(data.max_attendees) : "",
           });
           if (data.images && data.images.length > 0) {
             setImages(data.images.map((img) => img.image_url));
@@ -979,6 +1257,7 @@ function EventFormPage({ eventId, user, onNavigate }) {
       visibility: form.visibility,
       latitude: geo ? geo.lat : null,
       longitude: geo ? geo.lng : null,
+      max_attendees: parseInt(form.max_attendees) || null,
     };
 
     let targetEventId = eventId;
@@ -1062,6 +1341,11 @@ function EventFormPage({ eventId, user, onNavigate }) {
                 <option value="public">{t("form.public")}</option>
                 <option value="semi_public">{t("form.semiPublic")}</option>
               </select>
+            </div>
+            <div className="form-group">
+              <label>{t("form.maxAttendees")}</label>
+              <input type="number" min="1" value={form.max_attendees} onChange={update("max_attendees")} placeholder={t("form.maxAttendeesPlaceholder")} />
+              <small style={{ color: "#888", fontSize: 12, marginTop: 4, display: "block" }}>{t("form.maxAttendeesHint")}</small>
             </div>
             <button className="btn btn-primary btn-full" type="submit" disabled={submitting}>
               {submitting ? t("form.geocoding") : isEdit ? t("form.save") : t("form.create")}
@@ -1237,6 +1521,8 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
           <p>{user.email}</p>
         </div>
       </div>
+
+      <NotificationPreferences user={user} />
 
       <div className="profile-section">
         <h3>{t("profile.myEvents")} ({createdEvents.length})</h3>

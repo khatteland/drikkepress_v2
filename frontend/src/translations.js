@@ -156,6 +156,42 @@ export const translations = {
     "cat.Arts & Culture": "Kunst & Kultur",
     "cat.Other": "Annet",
 
+    // Notifications
+    "notif.title": "Varsler",
+    "notif.markAllRead": "Merk alle som lest",
+    "notif.empty": "Ingen varsler",
+    "notif.rsvp": "meldte seg på eventet ditt",
+    "notif.comment": "kommenterte på eventet ditt",
+    "notif.access_request": "ba om tilgang til eventet ditt",
+    "notif.invitation": "inviterte deg til et event",
+    "notif.reminder": "Påminnelse: eventet starter i morgen",
+    "notif.waitlist_promoted": "Du har fått plass!",
+
+    // Notification preferences
+    "prefs.title": "Varslingsinnstillinger",
+    "prefs.subtitle": "Velg hvilke e-postvarsler du vil motta",
+    "prefs.emailRsvp": "Noen melder seg på eventet ditt",
+    "prefs.emailComment": "Noen kommenterer på eventet ditt",
+    "prefs.emailAccessRequest": "Noen ber om tilgang",
+    "prefs.emailInvitation": "Du blir invitert til et event",
+    "prefs.emailReminder": "Påminnelse 24t før events",
+
+    // Calendar
+    "cal.google": "Google Kalender",
+    "cal.ics": "Last ned .ics",
+
+    // Capacity / waitlist
+    "form.maxAttendees": "Maks deltakere",
+    "form.maxAttendeesPlaceholder": "Ubegrenset",
+    "form.maxAttendeesHint": "La stå tom for ubegrenset",
+    "detail.spots": "plasser",
+    "detail.full": "Fullt",
+    "detail.waitlisted": "Du er på ventelisten",
+    "detail.waitlistTitle": "Venteliste",
+    "detail.waitlistedCount": "på venteliste",
+    "detail.waitlistPosition": "Din posisjon:",
+    "events.full": "Fullt",
+
     // General
     "loading": "Laster...",
   },
@@ -311,6 +347,42 @@ export const translations = {
     "cat.Music": "Music",
     "cat.Arts & Culture": "Arts & Culture",
     "cat.Other": "Other",
+
+    // Notifications
+    "notif.title": "Notifications",
+    "notif.markAllRead": "Mark all as read",
+    "notif.empty": "No notifications",
+    "notif.rsvp": "RSVPed to your event",
+    "notif.comment": "commented on your event",
+    "notif.access_request": "requested access to your event",
+    "notif.invitation": "invited you to an event",
+    "notif.reminder": "Reminder: event starts tomorrow",
+    "notif.waitlist_promoted": "You got a spot!",
+
+    // Notification preferences
+    "prefs.title": "Notification Settings",
+    "prefs.subtitle": "Choose which email notifications to receive",
+    "prefs.emailRsvp": "Someone RSVPs to your event",
+    "prefs.emailComment": "Someone comments on your event",
+    "prefs.emailAccessRequest": "Someone requests access",
+    "prefs.emailInvitation": "You are invited to an event",
+    "prefs.emailReminder": "Reminder 24h before events",
+
+    // Calendar
+    "cal.google": "Google Calendar",
+    "cal.ics": "Download .ics",
+
+    // Capacity / waitlist
+    "form.maxAttendees": "Max Attendees",
+    "form.maxAttendeesPlaceholder": "Unlimited",
+    "form.maxAttendeesHint": "Leave empty for unlimited",
+    "detail.spots": "spots",
+    "detail.full": "Full",
+    "detail.waitlisted": "You are on the waitlist",
+    "detail.waitlistTitle": "Waitlist",
+    "detail.waitlistedCount": "waitlisted",
+    "detail.waitlistPosition": "Your position:",
+    "events.full": "Full",
 
     // General
     "loading": "Loading...",
