@@ -469,42 +469,96 @@ function NotificationPreferences({ user }) {
 
 function Navbar({ user, currentPage, onNavigate, onLogout }) {
   const { t } = useI18n();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuOpen]);
+
+  const nav = (page, data) => { setMenuOpen(false); onNavigate(page, data); };
+
   return (
-    <nav className="navbar">
-      <div className="navbar-brand" onClick={() => onNavigate("events")}>
+    <nav className="navbar" ref={menuRef}>
+      <div className="navbar-brand" onClick={() => nav("events")}>
         {t("nav.brand")}
       </div>
-      <div className="navbar-links">
-        <button className={currentPage === "events" ? "active" : ""} onClick={() => onNavigate("events")}>
+
+      {/* Desktop links */}
+      <div className="navbar-links navbar-desktop">
+        <button className={currentPage === "events" ? "active" : ""} onClick={() => nav("events")}>
           {t("nav.events")}
         </button>
-        <button className={currentPage === "map" ? "active" : ""} onClick={() => onNavigate("map")}>
+        <button className={currentPage === "map" ? "active" : ""} onClick={() => nav("map")}>
           {t("nav.map")}
         </button>
         {user ? (
           <div className="navbar-user">
-            <button className="btn-primary" onClick={() => onNavigate("create-event")}>
+            <button className="btn-primary" onClick={() => nav("create-event")}>
               {t("nav.newEvent")}
             </button>
-            <NotificationBell user={user} onNavigate={onNavigate} />
-            <button className={currentPage === "profile" ? "active" : ""} onClick={() => onNavigate("profile")}>
+            <NotificationBell user={user} onNavigate={(p, d) => nav(p, d)} />
+            <button className={currentPage === "profile" ? "active" : ""} onClick={() => nav("profile")}>
               {t("nav.profile")}
             </button>
             {user.avatar_url ? (
-              <img className="navbar-avatar" src={user.avatar_url} alt={user.name} onClick={() => onNavigate("profile")} />
+              <img className="navbar-avatar" src={user.avatar_url} alt={user.name} onClick={() => nav("profile")} />
             ) : (
               <span className="navbar-user-name">{user.name}</span>
             )}
-            <button onClick={onLogout}>{t("nav.logout")}</button>
+            <button onClick={() => { setMenuOpen(false); onLogout(); }}>{t("nav.logout")}</button>
           </div>
         ) : (
           <>
-            <button onClick={() => onNavigate("login")}>{t("nav.login")}</button>
-            <button className="btn-primary" onClick={() => onNavigate("register")}>{t("nav.register")}</button>
+            <button onClick={() => nav("login")}>{t("nav.login")}</button>
+            <button className="btn-primary" onClick={() => nav("register")}>{t("nav.register")}</button>
           </>
         )}
         <LanguagePicker />
       </div>
+
+      {/* Mobile: notification + hamburger */}
+      <div className="navbar-mobile-actions">
+        {user && <NotificationBell user={user} onNavigate={(p, d) => nav(p, d)} />}
+        <button className="navbar-hamburger" onClick={() => setMenuOpen(!menuOpen)}>
+          {menuOpen ? "\u2715" : "\u2630"}
+        </button>
+      </div>
+
+      {/* Mobile dropdown menu */}
+      {menuOpen && (
+        <div className="navbar-mobile-menu">
+          <button className={currentPage === "events" ? "active" : ""} onClick={() => nav("events")}>
+            {t("nav.events")}
+          </button>
+          <button className={currentPage === "map" ? "active" : ""} onClick={() => nav("map")}>
+            {t("nav.map")}
+          </button>
+          {user ? (
+            <>
+              <button className="btn-primary" onClick={() => nav("create-event")}>
+                {t("nav.newEvent")}
+              </button>
+              <button className={currentPage === "profile" ? "active" : ""} onClick={() => nav("profile")}>
+                {t("nav.profile")}
+              </button>
+              <button onClick={() => { setMenuOpen(false); onLogout(); }}>{t("nav.logout")}</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => nav("login")}>{t("nav.login")}</button>
+              <button className="btn-primary" onClick={() => nav("register")}>{t("nav.register")}</button>
+            </>
+          )}
+          <LanguagePicker />
+        </div>
+      )}
     </nav>
   );
 }
