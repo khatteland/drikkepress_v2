@@ -229,6 +229,10 @@ export const translations = {
     "admin.notFound": "Bruker ikke funnet",
     "admin.alreadyAdmin": "Allerede admin",
 
+    // Social login
+    "auth.orSocial": "Eller fortsett med",
+    "auth.submitting": "Vennligst vent...",
+
     // General
     "loading": "Laster...",
   },
@@ -457,6 +461,10 @@ export const translations = {
     "admin.empty": "No co-admins yet",
     "admin.notFound": "No user found with this email",
     "admin.alreadyAdmin": "Already an admin",
+
+    // Social login
+    "auth.orSocial": "Or continue with",
+    "auth.submitting": "Please wait...",
 
     // General
     "loading": "Loading...",
