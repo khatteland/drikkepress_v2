@@ -43,6 +43,13 @@ body {
   opacity: 0.9;
 }
 
+.navbar-logo {
+  height: 38px;
+  background: #f5f0e8;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+
 .navbar-links {
   display: flex;
   align-items: center;
