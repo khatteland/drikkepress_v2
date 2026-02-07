@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useContext, createContext } from "react";
 import { supabase } from "./lib/supabase";
 import { translations, CATEGORIES } from "./translations";
+import { Html5Qrcode } from "html5-qrcode";
+import { QRCodeSVG } from "qrcode.react";
 
 // ============================================================
 // I18N CONTEXT
@@ -148,6 +150,9 @@ function parseUrl(pathname) {
   if (pathname === "/register") return { page: "register", data: {} };
   if (pathname === "/profile") return { page: "profile", data: {} };
 
+  const checkinMatch = pathname.match(/^\/event\/(\d+)\/checkin$/);
+  if (checkinMatch) return { page: "checkin", data: { eventId: parseInt(checkinMatch[1]) } };
+
   const eventMatch = pathname.match(/^\/event\/(\d+)$/);
   if (eventMatch) return { page: "event-detail", data: { eventId: parseInt(eventMatch[1]) } };
 
@@ -167,6 +172,7 @@ function pageToUrl(page, data = {}) {
     case "profile": return "/profile";
     case "event-detail": return `/event/${data.eventId}`;
     case "edit-event": return `/edit/${data.eventId}`;
+    case "checkin": return `/event/${data.eventId}/checkin`;
     default: return "/";
   }
 }
@@ -363,6 +369,7 @@ function NotificationBell({ user, onNavigate }) {
       case "invitation": return <><strong>{actor}</strong> {t("notif.invitation")}</>;
       case "reminder": return t("notif.reminder");
       case "waitlist_promoted": return t("notif.waitlist_promoted");
+      case "kicked": return <><strong>{actor}</strong> {t("notif.kicked")}</>;
       default: return notif.type;
     }
   };
@@ -865,6 +872,204 @@ function AccessRequestManager({ eventId }) {
 }
 
 // ============================================================
+// QR TOGGLE SECTION (Creator only)
+// ============================================================
+
+function QrToggleSection({ eventId, qrEnabled, onToggle }) {
+  const { t } = useI18n();
+  const [loading, setLoading] = useState(false);
+
+  const handleToggle = async () => {
+    setLoading(true);
+    await supabase.rpc("toggle_qr_enabled", { p_event_id: eventId });
+    onToggle();
+    setLoading(false);
+  };
+
+  return (
+    <div className="qr-toggle-section">
+      <div>
+        <div className="qr-toggle-label">{qrEnabled ? t("qr.disableToggle") : t("qr.enableToggle")}</div>
+        <div className="qr-toggle-status">{qrEnabled ? t("qr.enabled") : t("qr.disabled")}</div>
+      </div>
+      <label className="toggle-switch">
+        <input type="checkbox" checked={qrEnabled} onChange={handleToggle} disabled={loading} />
+        <span className="toggle-slider" />
+      </label>
+    </div>
+  );
+}
+
+// ============================================================
+// QR TICKET SECTION (Attendee — going + qr_enabled + not kicked)
+// ============================================================
+
+function QrTicketSection({ event }) {
+  const { t } = useI18n();
+  const [showQr, setShowQr] = useState(false);
+
+  if (!event.qr_enabled || !event.my_qr_token || event.my_kicked) return null;
+
+  const qrValue = `${window.location.origin}/event/${event.id}/checkin?token=${event.my_qr_token}`;
+
+  return (
+    <div className="qr-ticket-section">
+      <h3>{t("qr.myTicket")}</h3>
+      <button className="btn btn-secondary btn-sm" onClick={() => setShowQr(!showQr)}>
+        {showQr ? t("qr.hideMyQr") : t("qr.showMyQr")}
+      </button>
+      {showQr && (
+        <div className="qr-code-wrapper">
+          <QRCodeSVG value={qrValue} size={200} level="M" />
+        </div>
+      )}
+      {event.my_checked_in_at ? (
+        <div className="qr-checked-in-badge">{t("qr.checkedIn")}</div>
+      ) : (
+        <div className="qr-not-checked-in">{t("qr.notCheckedIn")}</div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// CHECK-IN PAGE (Creator only — scanner + list)
+// ============================================================
+
+function CheckinPage({ eventId, user, onNavigate }) {
+  const { t } = useI18n();
+  const [scanning, setScanning] = useState(false);
+  const [result, setResult] = useState(null);
+  const [checkinData, setCheckinData] = useState(null);
+  const [eventTitle, setEventTitle] = useState("");
+  const scannerRef = useRef(null);
+  const html5QrRef = useRef(null);
+
+  const loadCheckinList = useCallback(async () => {
+    const { data } = await supabase.rpc("get_checkin_list", { p_event_id: eventId });
+    if (data && data.status === "success") setCheckinData(data);
+  }, [eventId]);
+
+  useEffect(() => {
+    supabase.rpc("get_event_detail", { p_event_id: eventId }).then(({ data }) => {
+      if (data) setEventTitle(data.title);
+      if (data && data.creator_id !== user?.id) onNavigate("event-detail", { eventId });
+    });
+    loadCheckinList();
+  }, [eventId, user, onNavigate, loadCheckinList]);
+
+  // Auto-refresh checkin list every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(loadCheckinList, 5000);
+    return () => clearInterval(interval);
+  }, [loadCheckinList]);
+
+  const handleScan = async (decodedText) => {
+    try {
+      const url = new URL(decodedText);
+      const tokenParam = url.searchParams.get("token");
+      if (!tokenParam) { setResult({ status: "error", code: "invalid_token" }); return; }
+
+      const { data } = await supabase.rpc("checkin_by_qr_token", { p_event_id: eventId, p_qr_token: tokenParam });
+      setResult(data);
+      loadCheckinList();
+    } catch {
+      setResult({ status: "error", code: "invalid_token" });
+    }
+  };
+
+  const startScanning = async () => {
+    if (!scannerRef.current) return;
+    setResult(null);
+    const html5Qr = new Html5Qrcode(scannerRef.current.id);
+    html5QrRef.current = html5Qr;
+    try {
+      await html5Qr.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          handleScan(decodedText);
+        },
+        () => {}
+      );
+      setScanning(true);
+    } catch (err) {
+      console.error("Scanner error:", err);
+    }
+  };
+
+  const stopScanning = async () => {
+    if (html5QrRef.current) {
+      try { await html5QrRef.current.stop(); } catch {}
+      html5QrRef.current = null;
+    }
+    setScanning(false);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => { return () => { if (html5QrRef.current) { try { html5QrRef.current.stop(); } catch {} } }; }, []);
+
+  const getResultMessage = () => {
+    if (!result) return null;
+    if (result.status === "success") return { className: "success", text: t("qr.scanSuccess"), name: result.user_name };
+    if (result.status === "already") return { className: "already", text: t("qr.scanAlready"), name: result.user_name };
+    if (result.code === "kicked") return { className: "error", text: t("qr.scanKicked") };
+    return { className: "error", text: t("qr.scanInvalid") };
+  };
+
+  const resultMsg = getResultMessage();
+
+  return (
+    <div className="container">
+      <div className="checkin-page">
+        <button className="back-button" onClick={() => onNavigate("event-detail", { eventId })}>
+          ← {eventTitle}
+        </button>
+        <h1>{t("qr.scanTitle")}</h1>
+
+        <div className="checkin-scanner">
+          <div id="checkin-reader" ref={scannerRef} className="checkin-scanner-reader" />
+          <div style={{ display: "flex", gap: 8 }}>
+            {!scanning ? (
+              <button className="btn btn-primary" onClick={startScanning}>{t("qr.openScanner")}</button>
+            ) : (
+              <button className="btn btn-danger" onClick={stopScanning}>{t("qr.stopScanning")}</button>
+            )}
+          </div>
+        </div>
+
+        {resultMsg && (
+          <div className={`checkin-result ${resultMsg.className}`}>
+            <div className="checkin-result-info">
+              <strong>{resultMsg.text}</strong>
+              {resultMsg.name && <span>{resultMsg.name}</span>}
+            </div>
+          </div>
+        )}
+
+        {checkinData && (
+          <div className="checkin-list">
+            <h3>{t("qr.checkinList")}</h3>
+            <div className="checkin-list-stats">
+              <strong>{checkinData.total_checked_in}</strong> {t("qr.checkedInCount")} {t("qr.of")} <strong>{checkinData.total_going}</strong>
+            </div>
+            {(checkinData.attendees || []).map((a) => (
+              <div key={a.user_id} className="checkin-attendee">
+                <Avatar name={a.name} avatarUrl={a.avatar_url} size={32} />
+                <div className="checkin-attendee-info">{a.name}</div>
+                <span className={`checkin-attendee-status ${a.checked_in_at ? "checked-in" : "not-checked-in"}`}>
+                  {a.checked_in_at ? t("qr.checkedIn") : t("qr.notCheckedIn")}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // EVENT DETAIL PAGE
 // ============================================================
 
@@ -1000,10 +1205,20 @@ function EventDetailPage({ eventId, user, onNavigate }) {
   // FULL VIEW
   const isCreator = user && user.id === event.creator_id;
 
+  const handleKick = async (userId) => {
+    if (!confirm(t("kick.confirm"))) return;
+    await supabase.rpc("kick_user_from_event", { p_event_id: eventId, p_user_id: userId });
+    loadEvent();
+  };
+
   return (
     <div className="container">
       <div className="event-detail">
         <button className="back-button" onClick={() => onNavigate("events")}>{t("detail.back")}</button>
+
+        {event.my_kicked && (
+          <div className="kicked-notice">{t("kick.notice")}</div>
+        )}
 
         {event.images && event.images.length > 0 ? (
           <ImageGallery images={event.images} />
@@ -1036,12 +1251,20 @@ function EventDetailPage({ eventId, user, onNavigate }) {
             <>
               <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("edit-event", { eventId: event.id })}>{t("detail.edit")}</button>
               <button className="btn btn-danger btn-sm" onClick={handleDelete}>{t("detail.delete")}</button>
+              {event.qr_enabled && (
+                <button className="btn btn-primary btn-sm" onClick={() => onNavigate("checkin", { eventId: event.id })}>{t("qr.openScanner")}</button>
+              )}
             </>
           )}
         </div>
 
+        {isCreator && (
+          <QrToggleSection eventId={eventId} qrEnabled={event.qr_enabled} onToggle={loadEvent} />
+        )}
+
         <p className="event-detail-description">{event.description}</p>
 
+        {!event.my_kicked && (
         <div className="rsvp-section">
           <h3>{t("detail.attend")}</h3>
           <div className="rsvp-buttons">
@@ -1058,6 +1281,9 @@ function EventDetailPage({ eventId, user, onNavigate }) {
             <span><strong>{event.interested_count}</strong> {t("detail.interestedCount")}</span>
             {(event.waitlisted_count || 0) > 0 && (
               <span><strong>{event.waitlisted_count}</strong> {t("detail.waitlistedCount")}</span>
+            )}
+            {event.qr_enabled && (event.checked_in_count || 0) > 0 && (
+              <span><strong>{event.checked_in_count}</strong> {t("qr.checkedInCount")}</span>
             )}
           </div>
           {event.max_attendees && (
@@ -1086,6 +1312,9 @@ function EventDetailPage({ eventId, user, onNavigate }) {
             </div>
           )}
         </div>
+        )}
+
+        <QrTicketSection event={event} />
 
         {(event.going_users?.length > 0 || event.interested_users?.length > 0) && (
           <div className="attendees-section">
@@ -1094,10 +1323,20 @@ function EventDetailPage({ eventId, user, onNavigate }) {
                 <h3>{t("detail.goingTitle")} ({event.going_users.length})</h3>
                 <div className="attendees-list">
                   {event.going_users.map((u) => (
-                    <span key={u.id} className="attendee-chip">
-                      <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
-                      {u.name}
-                    </span>
+                    isCreator && u.id !== user.id ? (
+                      <span key={u.id} className="attendee-chip-with-action">
+                        <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
+                        {u.name}
+                        {u.checked_in_at && event.qr_enabled && <span style={{ color: "#16a34a", fontSize: 11 }}>&#10003;</span>}
+                        <button className="attendee-kick-btn" onClick={() => handleKick(u.id)}>{t("kick.button")}</button>
+                      </span>
+                    ) : (
+                      <span key={u.id} className="attendee-chip">
+                        <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
+                        {u.name}
+                        {u.checked_in_at && event.qr_enabled && <span style={{ color: "#16a34a", fontSize: 11 }}>&#10003;</span>}
+                      </span>
+                    )
                   ))}
                 </div>
               </>
@@ -1107,10 +1346,18 @@ function EventDetailPage({ eventId, user, onNavigate }) {
                 <h3 style={{ marginTop: 16 }}>{t("detail.interestedTitle")} ({event.interested_users.length})</h3>
                 <div className="attendees-list">
                   {event.interested_users.map((u) => (
-                    <span key={u.id} className="attendee-chip">
-                      <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
-                      {u.name}
-                    </span>
+                    isCreator && u.id !== user.id ? (
+                      <span key={u.id} className="attendee-chip-with-action">
+                        <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
+                        {u.name}
+                        <button className="attendee-kick-btn" onClick={() => handleKick(u.id)}>{t("kick.button")}</button>
+                      </span>
+                    ) : (
+                      <span key={u.id} className="attendee-chip">
+                        <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
+                        {u.name}
+                      </span>
+                    )
                   ))}
                 </div>
               </>
@@ -1642,6 +1889,7 @@ export default function App() {
         {page === "events" && <EventsPage onNavigate={navigate} />}
         {page === "map" && <MapPage onNavigate={navigate} />}
         {page === "event-detail" && <EventDetailPage eventId={pageData.eventId} user={user} onNavigate={navigate} />}
+        {page === "checkin" && <CheckinPage eventId={pageData.eventId} user={user} onNavigate={navigate} />}
         {page === "create-event" && <EventFormPage user={user} onNavigate={navigate} />}
         {page === "edit-event" && <EventFormPage eventId={pageData.eventId} user={user} onNavigate={navigate} />}
         {page === "login" && <LoginPage onNavigate={navigate} />}

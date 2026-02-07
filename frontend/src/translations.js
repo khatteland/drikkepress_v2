@@ -166,6 +166,7 @@ export const translations = {
     "notif.invitation": "inviterte deg til et event",
     "notif.reminder": "Påminnelse: eventet starter i morgen",
     "notif.waitlist_promoted": "Du har fått plass!",
+    "notif.kicked": "fjernet deg fra et event",
 
     // Notification preferences
     "prefs.title": "Varslingsinnstillinger",
@@ -191,6 +192,32 @@ export const translations = {
     "detail.waitlistedCount": "på venteliste",
     "detail.waitlistPosition": "Din posisjon:",
     "events.full": "Fullt",
+
+    // QR / Check-in
+    "qr.enableToggle": "Aktiver QR-innsjekking",
+    "qr.disableToggle": "Deaktiver QR-innsjekking",
+    "qr.enabled": "QR-innsjekking er aktivert",
+    "qr.disabled": "QR-innsjekking er deaktivert",
+    "qr.showMyQr": "Vis min QR-kode",
+    "qr.hideMyQr": "Skjul QR-kode",
+    "qr.myTicket": "Min billett",
+    "qr.checkedIn": "Innsjekket",
+    "qr.notCheckedIn": "Ikke innsjekket",
+    "qr.scanTitle": "Skann QR-koder",
+    "qr.openScanner": "Skann QR-koder",
+    "qr.stopScanning": "Stopp skanning",
+    "qr.scanSuccess": "Innsjekket!",
+    "qr.scanAlready": "Allerede innsjekket",
+    "qr.scanInvalid": "Ugyldig QR-kode",
+    "qr.scanKicked": "Bruker er sparket fra eventet",
+    "qr.checkinList": "Innsjekking",
+    "qr.checkedInCount": "innsjekket",
+    "qr.of": "av",
+
+    // Kick users
+    "kick.button": "Fjern",
+    "kick.confirm": "Er du sikker på at du vil fjerne denne brukeren?",
+    "kick.notice": "Du er fjernet fra dette eventet av arrangøren.",
 
     // General
     "loading": "Laster...",
@@ -358,6 +385,7 @@ export const translations = {
     "notif.invitation": "invited you to an event",
     "notif.reminder": "Reminder: event starts tomorrow",
     "notif.waitlist_promoted": "You got a spot!",
+    "notif.kicked": "removed you from an event",
 
     // Notification preferences
     "prefs.title": "Notification Settings",
@@ -383,6 +411,32 @@ export const translations = {
     "detail.waitlistedCount": "waitlisted",
     "detail.waitlistPosition": "Your position:",
     "events.full": "Full",
+
+    // QR / Check-in
+    "qr.enableToggle": "Enable QR check-in",
+    "qr.disableToggle": "Disable QR check-in",
+    "qr.enabled": "QR check-in is enabled",
+    "qr.disabled": "QR check-in is disabled",
+    "qr.showMyQr": "Show my QR code",
+    "qr.hideMyQr": "Hide QR code",
+    "qr.myTicket": "My Ticket",
+    "qr.checkedIn": "Checked in",
+    "qr.notCheckedIn": "Not checked in",
+    "qr.scanTitle": "Scan QR Codes",
+    "qr.openScanner": "Scan QR Codes",
+    "qr.stopScanning": "Stop scanning",
+    "qr.scanSuccess": "Checked in!",
+    "qr.scanAlready": "Already checked in",
+    "qr.scanInvalid": "Invalid QR code",
+    "qr.scanKicked": "User has been kicked from event",
+    "qr.checkinList": "Check-in",
+    "qr.checkedInCount": "checked in",
+    "qr.of": "of",
+
+    // Kick users
+    "kick.button": "Kick",
+    "kick.confirm": "Are you sure you want to remove this user?",
+    "kick.notice": "You have been removed from this event by the organizer.",
 
     // General
     "loading": "Loading...",
