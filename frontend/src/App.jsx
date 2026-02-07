@@ -377,7 +377,10 @@ function NotificationBell({ user, onNavigate }) {
   return (
     <div className="notification-bell" ref={bellRef}>
       <button className="notification-bell-btn" onClick={() => setOpen(!open)}>
-        &#128276;
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
         {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
       </button>
       {open && (
@@ -1305,12 +1308,18 @@ function EventDetailPage({ eventId, user, onNavigate }) {
     loadEvent();
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const url = `${window.location.origin}/event/${eventId}`;
-    navigator.clipboard.writeText(url).then(
-      () => alert(t("detail.linkCopied")),
-      () => prompt(t("detail.copyLink"), url)
-    );
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: event.title, url });
+      } catch {}
+    } else {
+      navigator.clipboard.writeText(url).then(
+        () => alert(t("detail.linkCopied")),
+        () => prompt(t("detail.copyLink"), url)
+      );
+    }
   };
 
   if (loading) return <div className="loading">{t("loading")}</div>;
@@ -1395,7 +1404,6 @@ function EventDetailPage({ eventId, user, onNavigate }) {
 
         <div className="event-actions">
           <button className="btn btn-secondary btn-sm" onClick={handleShare}>{t("detail.share")}</button>
-          <a className="btn btn-secondary btn-sm" href={generateGoogleCalendarUrl(event)} target="_blank" rel="noopener noreferrer">{t("cal.google")}</a>
           <button className="btn btn-secondary btn-sm" onClick={() => generateIcsFile(event)}>{t("cal.ics")}</button>
           {isAdmin && (
             <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("edit-event", { eventId: event.id })}>{t("detail.edit")}</button>

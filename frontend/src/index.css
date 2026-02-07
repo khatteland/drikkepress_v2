@@ -1512,15 +1512,17 @@ body {
 
 .notification-bell-btn {
   background: transparent;
-  border: 1px solid rgba(26, 74, 74, 0.15);
-  color: #1a4a4a;
-  padding: 6px 10px;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 8px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 18px;
   position: relative;
   transition: all 0.2s;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .notification-bell-btn:hover {
