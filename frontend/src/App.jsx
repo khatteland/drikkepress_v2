@@ -487,6 +487,7 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
   return (
     <nav className="navbar" ref={menuRef}>
       <div className="navbar-brand" onClick={() => nav("events")}>
+        <img src="/logo.png" alt="Drikkepress" style={{ height: 32, borderRadius: 6 }} />
         {t("nav.brand")}
       </div>
 
