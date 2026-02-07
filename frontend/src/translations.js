@@ -40,7 +40,7 @@ export const translations = {
     // Event detail
     "detail.back": "Tilbake til events",
     "detail.organizedBy": "Arrangert av",
-    "detail.share": "Del lenke",
+    "detail.share": "Del",
     "detail.edit": "Rediger",
     "detail.delete": "Slett",
     "detail.deleteConfirm": "Er du sikker på at du vil slette dette eventet?",
@@ -179,7 +179,7 @@ export const translations = {
 
     // Calendar
     "cal.google": "Google Kalender",
-    "cal.ics": "Last ned .ics",
+    "cal.ics": "Legg til i kalender",
 
     // Capacity / waitlist
     "form.maxAttendees": "Maks deltakere",
@@ -273,7 +273,7 @@ export const translations = {
     // Event detail
     "detail.back": "Back to events",
     "detail.organizedBy": "Organized by",
-    "detail.share": "Share link",
+    "detail.share": "Share",
     "detail.edit": "Edit",
     "detail.delete": "Delete",
     "detail.deleteConfirm": "Are you sure you want to delete this event?",
@@ -412,7 +412,7 @@ export const translations = {
 
     // Calendar
     "cal.google": "Google Calendar",
-    "cal.ics": "Download .ics",
+    "cal.ics": "Add to calendar",
 
     // Capacity / waitlist
     "form.maxAttendees": "Max Attendees",
