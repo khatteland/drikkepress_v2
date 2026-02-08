@@ -467,28 +467,192 @@ function NotificationPreferences({ user }) {
 }
 
 // ============================================================
+// BOTTOM TAB BAR (mobile only, SAS-style)
+// ============================================================
+
+function BottomTabBar({ user, currentPage, onNavigate }) {
+  const { t } = useI18n();
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const bellRef = useRef(null);
+
+  const loadNotifications = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("notifications")
+      .select("*, actor:profiles!actor_id(name)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    setNotifications(data || []);
+    setUnreadCount((data || []).filter((n) => !n.is_read).length);
+  }, [user]);
+
+  useEffect(() => { loadNotifications(); }, [loadNotifications]);
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("bottomtab-notifications")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        () => { loadNotifications(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, loadNotifications]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (!notifOpen) return;
+    const handler = (e) => {
+      if (bellRef.current && !bellRef.current.contains(e.target)) setNotifOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [notifOpen]);
+
+  const isActive = (tabPage) => currentPage === tabPage;
+
+  const handleNav = (page) => {
+    setNotifOpen(false);
+    onNavigate(page);
+  };
+
+  return (
+    <div className="bottom-tab-bar">
+      {/* Events */}
+      <button className={`bottom-tab ${isActive("events") ? "active" : ""}`} onClick={() => handleNav("events")}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span>{t("nav.events")}</span>
+      </button>
+
+      {/* Map */}
+      <button className={`bottom-tab ${isActive("map") ? "active" : ""}`} onClick={() => handleNav("map")}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+          <circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span>{t("nav.map")}</span>
+      </button>
+
+      {/* + New */}
+      <button className={`bottom-tab ${isActive("create-event") ? "active" : ""}`} onClick={() => handleNav(user ? "create-event" : "login")}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="16"/>
+          <line x1="8" y1="12" x2="16" y2="12"/>
+        </svg>
+        <span>{t("nav.newEvent").replace("+ ", "")}</span>
+      </button>
+
+      {/* Notifications — only if logged in */}
+      {user && (
+        <div className="bottom-tab-wrapper" ref={bellRef}>
+          <button className={`bottom-tab ${notifOpen ? "active" : ""}`} onClick={() => setNotifOpen(!notifOpen)}>
+            <div className="bottom-tab-icon-wrapper">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              {unreadCount > 0 && <span className="bottom-tab-badge">{unreadCount}</span>}
+            </div>
+            <span>{t("nav.notifications")}</span>
+          </button>
+          {notifOpen && (
+            <NotificationDropdown
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onNavigate={(p, d) => { setNotifOpen(false); onNavigate(p, d); }}
+              onMarkAllRead={async () => {
+                await supabase.rpc("mark_all_notifications_read");
+                loadNotifications();
+              }}
+              onRefresh={loadNotifications}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Profile */}
+      <button className={`bottom-tab ${isActive("profile") ? "active" : ""}`} onClick={() => handleNav(user ? "profile" : "login")}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span>{t("nav.profile")}</span>
+      </button>
+    </div>
+  );
+}
+
+// Shared notification dropdown used by both BottomTabBar and NotificationBell
+function NotificationDropdown({ notifications, unreadCount, onNavigate, onMarkAllRead, onRefresh }) {
+  const { t, lang } = useI18n();
+
+  const handleClick = async (notif) => {
+    if (!notif.is_read) {
+      await supabase.from("notifications").update({ is_read: true }).eq("id", notif.id);
+    }
+    onNavigate("event-detail", { eventId: notif.event_id });
+    onRefresh();
+  };
+
+  const getNotifText = (notif) => {
+    const actor = notif.actor?.name || "";
+    switch (notif.type) {
+      case "rsvp": return <><strong>{actor}</strong> {t("notif.rsvp")}</>;
+      case "comment": return <><strong>{actor}</strong> {t("notif.comment")}</>;
+      case "access_request": return <><strong>{actor}</strong> {t("notif.access_request")}</>;
+      case "invitation": return <><strong>{actor}</strong> {t("notif.invitation")}</>;
+      case "reminder": return t("notif.reminder");
+      case "waitlist_promoted": return t("notif.waitlist_promoted");
+      case "kicked": return <><strong>{actor}</strong> {t("notif.kicked")}</>;
+      default: return notif.type;
+    }
+  };
+
+  return (
+    <div className="notification-dropdown bottom-tab-dropdown">
+      <div className="notification-dropdown-header">
+        <h3>{t("notif.title")}</h3>
+        {unreadCount > 0 && <button onClick={onMarkAllRead}>{t("notif.markAllRead")}</button>}
+      </div>
+      <div className="notification-list">
+        {notifications.length === 0 ? (
+          <div className="notification-empty">{t("notif.empty")}</div>
+        ) : (
+          notifications.map((n) => (
+            <div key={n.id} className={`notification-item ${n.is_read ? "" : "unread"}`} onClick={() => handleClick(n)}>
+              <div className="notification-item-dot" />
+              <div className="notification-item-content">
+                <p>{getNotifText(n)}</p>
+                <div className="notification-item-time">{timeAgo(n.created_at, lang)}</div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // NAVBAR
 // ============================================================
 
 function Navbar({ user, currentPage, onNavigate, onLogout }) {
   const { t } = useI18n();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
 
-  // Close menu on outside click
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [menuOpen]);
-
-  const nav = (page, data) => { setMenuOpen(false); onNavigate(page, data); };
+  const nav = (page, data) => { onNavigate(page, data); };
 
   return (
-    <nav className="navbar" ref={menuRef}>
+    <nav className="navbar">
       <div className="navbar-brand" onClick={() => nav("events")}>
         <img src="/logo.png" alt="Drikkepress" className="navbar-logo" />
       </div>
@@ -515,7 +679,7 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
             ) : (
               <span className="navbar-user-name">{user.name}</span>
             )}
-            <button onClick={() => { setMenuOpen(false); onLogout(); }}>{t("nav.logout")}</button>
+            <button onClick={() => onLogout()}>{t("nav.logout")}</button>
           </div>
         ) : (
           <>
@@ -526,42 +690,10 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
         <LanguagePicker />
       </div>
 
-      {/* Mobile: notification + hamburger */}
+      {/* Mobile: just language picker (bottom tab bar handles navigation) */}
       <div className="navbar-mobile-actions">
-        {user && <NotificationBell user={user} onNavigate={(p, d) => nav(p, d)} />}
-        <button className="navbar-hamburger" onClick={() => setMenuOpen(!menuOpen)}>
-          {menuOpen ? "\u2715" : "\u2630"}
-        </button>
+        <LanguagePicker />
       </div>
-
-      {/* Mobile dropdown menu */}
-      {menuOpen && (
-        <div className="navbar-mobile-menu">
-          <button className={currentPage === "events" ? "active" : ""} onClick={() => nav("events")}>
-            {t("nav.events")}
-          </button>
-          <button className={currentPage === "map" ? "active" : ""} onClick={() => nav("map")}>
-            {t("nav.map")}
-          </button>
-          {user ? (
-            <>
-              <button className="btn-primary" onClick={() => nav("create-event")}>
-                {t("nav.newEvent")}
-              </button>
-              <button className={currentPage === "profile" ? "active" : ""} onClick={() => nav("profile")}>
-                {t("nav.profile")}
-              </button>
-              <button onClick={() => { setMenuOpen(false); onLogout(); }}>{t("nav.logout")}</button>
-            </>
-          ) : (
-            <>
-              <button onClick={() => nav("login")}>{t("nav.login")}</button>
-              <button className="btn-primary" onClick={() => nav("register")}>{t("nav.register")}</button>
-            </>
-          )}
-          <LanguagePicker />
-        </div>
-      )}
     </nav>
   );
 }
@@ -2092,6 +2224,8 @@ export default function App() {
         {page === "login" && <LoginPage onNavigate={navigate} />}
         {page === "register" && <RegisterPage onNavigate={navigate} />}
         {page === "profile" && <ProfilePage user={user} onNavigate={navigate} onAvatarChange={(url) => setUser({ ...user, avatar_url: url })} />}
+
+        <BottomTabBar user={user} currentPage={page} onNavigate={navigate} />
       </div>
     </I18nContext.Provider>
   );

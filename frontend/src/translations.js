@@ -156,6 +156,9 @@ export const translations = {
     "cat.Arts & Culture": "Kunst & Kultur",
     "cat.Other": "Annet",
 
+    // Nav (bottom tab)
+    "nav.notifications": "Varsler",
+
     // Notifications
     "notif.title": "Varsler",
     "notif.markAllRead": "Merk alle som lest",
@@ -388,6 +391,9 @@ export const translations = {
     "cat.Music": "Music",
     "cat.Arts & Culture": "Arts & Culture",
     "cat.Other": "Other",
+
+    // Nav (bottom tab)
+    "nav.notifications": "Alerts",
 
     // Notifications
     "notif.title": "Notifications",
