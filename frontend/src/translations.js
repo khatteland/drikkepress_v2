@@ -236,6 +236,34 @@ export const translations = {
     "auth.orSocial": "Eller fortsett med",
     "auth.submitting": "Vennligst vent...",
 
+    // Discover
+    "nav.discover": "Utforsk",
+    "discover.title": "Utforsk events",
+    "discover.subtitle": "Sveip for \u00e5 oppdage events i n\u00e6rheten",
+    "discover.filters": "Filtre",
+    "discover.radius": "Radius",
+    "discover.dateFrom": "Fra dato",
+    "discover.dateTo": "Til dato",
+    "discover.interested": "INTERESSERT!",
+    "discover.pass": "PASS",
+    "discover.noMore": "Ingen flere events",
+    "discover.noMoreHint": "Pr\u00f8v \u00e5 justere filtrene dine eller \u00f8k radius",
+    "discover.enableLocation": "Aktiver posisjon for \u00e5 oppdage events i n\u00e6rheten",
+    "discover.approvalRequired": "Godkjenning p\u00e5krevd",
+    "discover.addressHidden": "N\u00f8yaktig adresse vises etter godkjenning",
+    "discover.going": "deltar",
+    "discover.km": "km unna",
+
+    // Join mode
+    "form.joinMode": "P\u00e5meldingsmodus",
+    "form.joinOpen": "\u00c5pen — alle kan delta",
+    "form.joinApproval": "Godkjenning p\u00e5krevd — arrang\u00f8r m\u00e5 godkjenne",
+    "form.joinModeHint": "Velg om deltakere kan melde seg p\u00e5 direkte eller m\u00e5 godkjennes",
+
+    // Plus
+    "plus.badge": "Plus",
+    "plus.member": "Plus-medlem",
+
     // General
     "loading": "Laster...",
   },
@@ -471,6 +499,34 @@ export const translations = {
     // Social login
     "auth.orSocial": "Or continue with",
     "auth.submitting": "Please wait...",
+
+    // Discover
+    "nav.discover": "Discover",
+    "discover.title": "Discover Events",
+    "discover.subtitle": "Swipe to discover events near you",
+    "discover.filters": "Filters",
+    "discover.radius": "Radius",
+    "discover.dateFrom": "From date",
+    "discover.dateTo": "To date",
+    "discover.interested": "INTERESTED!",
+    "discover.pass": "PASS",
+    "discover.noMore": "No more events",
+    "discover.noMoreHint": "Try adjusting your filters or increasing the radius",
+    "discover.enableLocation": "Enable location to discover events near you",
+    "discover.approvalRequired": "Approval required",
+    "discover.addressHidden": "Exact address shown after approval",
+    "discover.going": "going",
+    "discover.km": "km away",
+
+    // Join mode
+    "form.joinMode": "Join Mode",
+    "form.joinOpen": "Open — anyone can join",
+    "form.joinApproval": "Approval required — host must approve",
+    "form.joinModeHint": "Choose whether attendees can join directly or need approval",
+
+    // Plus
+    "plus.badge": "Plus",
+    "plus.member": "Plus member",
 
     // General
     "loading": "Loading...",

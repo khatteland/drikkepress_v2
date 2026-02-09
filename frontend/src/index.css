@@ -2353,6 +2353,391 @@ body {
 }
 
 /* ============================================================
+   DISCOVER PAGE — CARD STACK
+   ============================================================ */
+
+.discover-page {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.discover-page .page-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.discover-filter-toggle {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.discover-filter-toggle button {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 8px 20px;
+  font-size: 14px;
+  color: #555;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.discover-filter-toggle button:hover {
+  border-color: #F26B3A;
+  color: #F26B3A;
+}
+
+.discover-filter-panel {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.discover-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.discover-filter-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+}
+
+.discover-radius-slider {
+  width: 100%;
+  accent-color: #F26B3A;
+  height: 6px;
+  cursor: pointer;
+}
+
+.discover-radius-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #F26B3A;
+}
+
+.discover-filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.discover-card-stack {
+  position: relative;
+  height: 520px;
+  perspective: 1000px;
+  margin-bottom: 20px;
+}
+
+.discover-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  touch-action: none;
+  will-change: transform;
+  user-select: none;
+  cursor: grab;
+}
+
+.discover-card:active {
+  cursor: grabbing;
+}
+
+.discover-card.behind-1 {
+  transform: scale(0.95) translateY(10px);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.discover-card.behind-2 {
+  transform: scale(0.90) translateY(20px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.discover-card.top {
+  z-index: 2;
+}
+
+.discover-card-image {
+  width: 100%;
+  height: 55%;
+  object-fit: cover;
+  background: linear-gradient(135deg, #e0e0e0, #f0f0f0);
+  display: block;
+}
+
+.discover-card-image-placeholder {
+  width: 100%;
+  height: 55%;
+  background: linear-gradient(135deg, #F26B3A20, #1B214120);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+}
+
+.discover-card-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 45%;
+  overflow: hidden;
+}
+
+.discover-card-body .event-card-category {
+  align-self: flex-start;
+}
+
+.discover-card-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1B2141;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.discover-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: #888;
+}
+
+.discover-card-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.discover-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.discover-card-attendees {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.discover-card-attendees .avatar-stack {
+  display: flex;
+}
+
+.discover-card-attendees .avatar-stack .avatar,
+.discover-card-attendees .avatar-stack .avatar-img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid white;
+  margin-left: -6px;
+}
+
+.discover-card-attendees .avatar-stack > *:first-child {
+  margin-left: 0;
+}
+
+.discover-card-stats {
+  font-size: 13px;
+  color: #666;
+}
+
+.discover-card-stats strong {
+  color: #1B2141;
+}
+
+.discover-card-distance {
+  font-size: 12px;
+  color: #F26B3A;
+  font-weight: 600;
+}
+
+.discover-approval-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+/* Swipe Indicators */
+.swipe-indicator {
+  position: absolute;
+  top: 40px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.1s;
+  pointer-events: none;
+}
+
+.swipe-indicator.right {
+  right: 20px;
+  color: #22c55e;
+  border: 4px solid #22c55e;
+  transform: rotate(-15deg);
+}
+
+.swipe-indicator.left {
+  left: 20px;
+  color: #ef4444;
+  border: 4px solid #ef4444;
+  transform: rotate(15deg);
+}
+
+/* Action Buttons */
+.discover-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  align-items: center;
+}
+
+.discover-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2px solid;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.discover-btn:active {
+  transform: scale(0.92);
+}
+
+.discover-btn.pass {
+  width: 56px;
+  height: 56px;
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.discover-btn.pass:hover {
+  background: #ef4444;
+  color: white;
+}
+
+.discover-btn.interested {
+  width: 64px;
+  height: 64px;
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.discover-btn.interested:hover {
+  background: #22c55e;
+  color: white;
+}
+
+.discover-btn.details {
+  width: 48px;
+  height: 48px;
+  border-color: #F26B3A;
+  color: #F26B3A;
+}
+
+.discover-btn.details:hover {
+  background: #F26B3A;
+  color: white;
+}
+
+/* Swipe animations */
+@keyframes swipeRight {
+  to {
+    transform: translateX(150%) rotate(30deg);
+    opacity: 0;
+  }
+}
+
+@keyframes swipeLeft {
+  to {
+    transform: translateX(-150%) rotate(-30deg);
+    opacity: 0;
+  }
+}
+
+.discover-card.swiping-right {
+  animation: swipeRight 0.4s ease forwards;
+}
+
+.discover-card.swiping-left {
+  animation: swipeLeft 0.4s ease forwards;
+}
+
+/* Empty State */
+.discover-empty {
+  text-align: center;
+  padding: 80px 24px;
+  color: #888;
+}
+
+.discover-empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.discover-empty h3 {
+  font-size: 20px;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.discover-empty p {
+  font-size: 15px;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.discover-location-prompt {
+  text-align: center;
+  padding: 80px 24px;
+}
+
+.discover-location-prompt button {
+  margin-top: 16px;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 
@@ -2527,6 +2912,20 @@ body {
   .attendee-kick-btn:active {
     border-color: #ef4444;
     color: #ef4444;
+  }
+
+  /* Discover page responsive */
+  .discover-card-stack {
+    height: calc(100vh - 280px);
+    min-height: 400px;
+  }
+
+  .discover-page {
+    padding: 16px 12px;
+  }
+
+  .discover-filter-row {
+    grid-template-columns: 1fr;
   }
 
   /* Touch targets */

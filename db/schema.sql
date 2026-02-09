@@ -11,6 +11,7 @@ CREATE TABLE profiles (
     name        TEXT NOT NULL,
     email       TEXT,
     avatar_url  TEXT,
+    is_plus     BOOLEAN NOT NULL DEFAULT FALSE,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -54,6 +55,7 @@ CREATE TABLE events (
     image_url       TEXT,
     category        TEXT NOT NULL,
     visibility      TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'semi_public')),
+    join_mode       TEXT NOT NULL DEFAULT 'open' CHECK (join_mode IN ('open', 'approval_required')),
     max_attendees   INTEGER DEFAULT NULL,
     qr_enabled      BOOLEAN NOT NULL DEFAULT FALSE,
     latitude        DOUBLE PRECISION,
@@ -192,6 +194,21 @@ CREATE INDEX idx_event_admins_event ON event_admins(event_id);
 CREATE INDEX idx_event_admins_user ON event_admins(user_id);
 
 -- ============================================================
+-- EVENT SWIPES (discover feature)
+-- ============================================================
+CREATE TABLE event_swipes (
+    id          SERIAL PRIMARY KEY,
+    user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    event_id    INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    direction   TEXT NOT NULL CHECK (direction IN ('right', 'left')),
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, event_id)
+);
+
+CREATE INDEX idx_event_swipes_user ON event_swipes(user_id);
+CREATE INDEX idx_event_swipes_event ON event_swipes(event_id);
+
+-- ============================================================
 -- HELPER: is_event_admin (creator OR co-admin)
 -- ============================================================
 CREATE OR REPLACE FUNCTION is_event_admin(p_event_id INTEGER, p_user_id UUID)
@@ -277,6 +294,7 @@ DECLARE
     current_uid UUID;
     has_access BOOLEAN;
     ar_status TEXT;
+    show_location BOOLEAN;
 BEGIN
     SELECT * INTO ev FROM events WHERE id = p_event_id;
     IF NOT FOUND THEN RETURN NULL; END IF;
@@ -285,7 +303,6 @@ BEGIN
     has_access := check_event_access(p_event_id, current_uid);
 
     IF NOT has_access THEN
-        -- Check for existing access request
         SELECT ar.status INTO ar_status
         FROM access_requests ar
         WHERE ar.event_id = p_event_id AND ar.user_id = current_uid;
@@ -295,12 +312,32 @@ BEGIN
             'title', ev.title,
             'category', ev.category,
             'visibility', ev.visibility,
+            'join_mode', ev.join_mode,
             'has_access', false,
             'access_request_status', ar_status
         );
     END IF;
 
-    -- Full access
+    -- Determine if location should be shown
+    show_location := TRUE;
+    IF ev.join_mode = 'approval_required' THEN
+        IF is_event_admin(p_event_id, current_uid) THEN
+            show_location := TRUE;
+        ELSIF EXISTS (
+            SELECT 1 FROM access_requests
+            WHERE event_id = p_event_id AND user_id = current_uid AND status = 'approved'
+        ) THEN
+            show_location := TRUE;
+        ELSIF EXISTS (
+            SELECT 1 FROM rsvps
+            WHERE event_id = p_event_id AND user_id = current_uid AND status = 'going'
+        ) THEN
+            show_location := TRUE;
+        ELSE
+            show_location := FALSE;
+        END IF;
+    END IF;
+
     RETURN jsonb_build_object(
         'id', ev.id,
         'title', ev.title,
@@ -308,12 +345,23 @@ BEGIN
         'date', ev.date,
         'time', ev.time,
         'end_time', ev.end_time,
-        'location', ev.location,
+        'location', CASE WHEN show_location THEN ev.location ELSE NULL END,
+        'location_hidden', NOT show_location,
+        'area_name', CASE
+            WHEN NOT show_location THEN
+                CASE
+                    WHEN POSITION(',' IN ev.location) > 0 THEN
+                        TRIM(SUBSTRING(ev.location FROM POSITION(',' IN ev.location) + 1))
+                    ELSE ev.location
+                END
+            ELSE NULL
+        END,
         'image_url', ev.image_url,
         'category', ev.category,
         'visibility', ev.visibility,
-        'latitude', ev.latitude,
-        'longitude', ev.longitude,
+        'join_mode', ev.join_mode,
+        'latitude', CASE WHEN show_location THEN ev.latitude ELSE NULL END,
+        'longitude', CASE WHEN show_location THEN ev.longitude ELSE NULL END,
         'creator_id', ev.creator_id,
         'created_at', ev.created_at,
         'max_attendees', ev.max_attendees,
@@ -787,6 +835,147 @@ END;
 $$;
 
 -- ============================================================
+-- RPC: get_discover_events
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION get_discover_events(
+    p_lat DOUBLE PRECISION,
+    p_lng DOUBLE PRECISION,
+    p_radius_km INTEGER DEFAULT 25,
+    p_date_from DATE DEFAULT CURRENT_DATE,
+    p_date_to DATE DEFAULT NULL,
+    p_category TEXT DEFAULT NULL,
+    p_limit INTEGER DEFAULT 20
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    current_uid UUID;
+    result JSONB;
+BEGIN
+    current_uid := auth.uid();
+
+    SELECT COALESCE(jsonb_agg(row_data), '[]'::jsonb)
+    INTO result
+    FROM (
+        SELECT jsonb_build_object(
+            'id', e.id,
+            'title', e.title,
+            'date', e.date,
+            'time', e.time,
+            'category', e.category,
+            'image_url', e.image_url,
+            'join_mode', e.join_mode,
+            'area_name', CASE
+                WHEN e.join_mode = 'approval_required' THEN
+                    CASE
+                        WHEN POSITION(',' IN e.location) > 0 THEN
+                            TRIM(SUBSTRING(e.location FROM POSITION(',' IN e.location) + 1))
+                        ELSE e.location
+                    END
+                ELSE e.location
+            END,
+            'distance_km', ROUND((
+                6371 * ACOS(
+                    LEAST(1.0, GREATEST(-1.0,
+                        COS(RADIANS(p_lat)) * COS(RADIANS(e.latitude)) *
+                        COS(RADIANS(e.longitude) - RADIANS(p_lng)) +
+                        SIN(RADIANS(p_lat)) * SIN(RADIANS(e.latitude))
+                    ))
+                )
+            )::numeric, 1),
+            'going_count', (
+                SELECT COUNT(*) FROM rsvps r
+                WHERE r.event_id = e.id AND r.status = 'going' AND r.kicked_at IS NULL
+            ),
+            'attendee_preview', COALESCE((
+                SELECT jsonb_agg(jsonb_build_object('name', p.name, 'avatar_url', p.avatar_url))
+                FROM (
+                    SELECT pr.name, pr.avatar_url
+                    FROM rsvps r2
+                    JOIN profiles pr ON pr.id = r2.user_id
+                    WHERE r2.event_id = e.id AND r2.status IN ('going', 'interested') AND r2.kicked_at IS NULL
+                    LIMIT 5
+                ) p
+            ), '[]'::jsonb)
+        ) AS row_data
+        FROM events e
+        WHERE e.visibility = 'public'
+          AND e.date >= p_date_from
+          AND (p_date_to IS NULL OR e.date <= p_date_to)
+          AND (p_category IS NULL OR e.category = p_category)
+          AND e.latitude IS NOT NULL
+          AND e.longitude IS NOT NULL
+          AND (current_uid IS NULL OR e.creator_id != current_uid)
+          AND (current_uid IS NULL OR NOT EXISTS (
+              SELECT 1 FROM event_swipes es
+              WHERE es.user_id = current_uid AND es.event_id = e.id
+          ))
+          AND (
+              6371 * ACOS(
+                  LEAST(1.0, GREATEST(-1.0,
+                      COS(RADIANS(p_lat)) * COS(RADIANS(e.latitude)) *
+                      COS(RADIANS(e.longitude) - RADIANS(p_lng)) +
+                      SIN(RADIANS(p_lat)) * SIN(RADIANS(e.latitude))
+                  ))
+              )
+          ) <= p_radius_km
+        ORDER BY e.date ASC
+        LIMIT p_limit
+    ) sub;
+
+    RETURN result;
+END;
+$$;
+
+-- ============================================================
+-- RPC: handle_swipe
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION handle_swipe(p_event_id INTEGER, p_direction TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    current_uid UUID;
+    ev events%ROWTYPE;
+BEGIN
+    current_uid := auth.uid();
+    IF current_uid IS NULL THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'not_authenticated');
+    END IF;
+
+    INSERT INTO event_swipes (user_id, event_id, direction)
+    VALUES (current_uid, p_event_id, p_direction)
+    ON CONFLICT (user_id, event_id) DO UPDATE SET direction = p_direction;
+
+    IF p_direction = 'right' THEN
+        SELECT * INTO ev FROM events WHERE id = p_event_id;
+        IF ev.id IS NULL THEN
+            RETURN jsonb_build_object('status', 'error', 'code', 'event_not_found');
+        END IF;
+
+        INSERT INTO rsvps (user_id, event_id, status)
+        VALUES (current_uid, p_event_id, 'interested')
+        ON CONFLICT (user_id, event_id) DO NOTHING;
+
+        IF ev.join_mode = 'approval_required' THEN
+            INSERT INTO access_requests (event_id, user_id, status)
+            VALUES (p_event_id, current_uid, 'pending')
+            ON CONFLICT (event_id, user_id) DO NOTHING;
+        END IF;
+    END IF;
+
+    RETURN jsonb_build_object('status', 'success');
+END;
+$$;
+
+-- ============================================================
 -- ROW LEVEL SECURITY
 -- ============================================================
 
@@ -939,6 +1128,15 @@ CREATE POLICY "Creator can remove event_admins"
     ON event_admins FOR DELETE USING (
         EXISTS (SELECT 1 FROM events WHERE id = event_id AND creator_id = auth.uid())
     );
+
+-- Event Swipes
+ALTER TABLE event_swipes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own swipes"
+    ON event_swipes FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "Users can create own swipes"
+    ON event_swipes FOR INSERT WITH CHECK (user_id = auth.uid());
 
 -- ============================================================
 -- ENABLE REALTIME on notifications

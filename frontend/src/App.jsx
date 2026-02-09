@@ -144,6 +144,7 @@ function generateIcsFile(event) {
 
 function parseUrl(pathname) {
   if (pathname === "/" || pathname === "") return { page: "events", data: {} };
+  if (pathname === "/discover") return { page: "discover", data: {} };
   if (pathname === "/map") return { page: "map", data: {} };
   if (pathname === "/create") return { page: "create-event", data: {} };
   if (pathname === "/login") return { page: "login", data: {} };
@@ -165,6 +166,7 @@ function parseUrl(pathname) {
 function pageToUrl(page, data = {}) {
   switch (page) {
     case "events": return "/";
+    case "discover": return "/discover";
     case "map": return "/map";
     case "create-event": return "/create";
     case "login": return "/login";
@@ -532,13 +534,13 @@ function BottomTabBar({ user, currentPage, onNavigate }) {
         <span>{t("nav.events")}</span>
       </button>
 
-      {/* Map */}
-      <button className={`bottom-tab ${isActive("map") ? "active" : ""}`} onClick={() => handleNav("map")}>
+      {/* Discover */}
+      <button className={`bottom-tab ${isActive("discover") ? "active" : ""}`} onClick={() => handleNav("discover")}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-          <circle cx="12" cy="10" r="3"/>
+          <circle cx="12" cy="12" r="10"/>
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
         </svg>
-        <span>{t("nav.map")}</span>
+        <span>{t("nav.discover")}</span>
       </button>
 
       {/* + New */}
@@ -661,6 +663,9 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
       <div className="navbar-links navbar-desktop">
         <button className={currentPage === "events" ? "active" : ""} onClick={() => nav("events")}>
           {t("nav.events")}
+        </button>
+        <button className={currentPage === "discover" ? "active" : ""} onClick={() => nav("discover")}>
+          {t("nav.discover")}
         </button>
         <button className={currentPage === "map" ? "active" : ""} onClick={() => nav("map")}>
           {t("nav.map")}
@@ -1526,7 +1531,11 @@ function EventDetailPage({ eventId, user, onNavigate }) {
           <div className="event-detail-meta">
             <span>{formatDate(event.date, lang)}</span>
             <span>{event.time?.slice(0, 5)}{event.end_time ? ` – ${event.end_time.slice(0, 5)}` : ""}</span>
-            <span>{event.location}</span>
+            {event.location_hidden ? (
+              <span style={{ color: "#d97706" }}>📍 {event.area_name} — <em>{t("discover.addressHidden")}</em></span>
+            ) : (
+              <span>{event.location}</span>
+            )}
           </div>
         </div>
 
@@ -1735,6 +1744,319 @@ function EventDetailPage({ eventId, user, onNavigate }) {
 }
 
 // ============================================================
+// DISCOVER PAGE (Tinder-style swipe)
+// ============================================================
+
+function DiscoverPage({ user, onNavigate }) {
+  const { t, lang } = useI18n();
+  const [cards, setCards] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [radius, setRadius] = useState(25);
+  const [dateFrom, setDateFrom] = useState(new Date().toISOString().split("T")[0]);
+  const [dateTo, setDateTo] = useState("");
+  const [category, setCategory] = useState("");
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationDenied, setLocationDenied] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [swipeDir, setSwipeDir] = useState(null);
+
+  // Pointer state refs (no re-render needed)
+  const dragRef = useRef({ startX: 0, startY: 0, currentX: 0, isDragging: false });
+  const cardRef = useRef(null);
+  const indicatorRightRef = useRef(null);
+  const indicatorLeftRef = useRef(null);
+
+  // Request geolocation on mount
+  useEffect(() => {
+    if (!navigator.geolocation) { setLocationDenied(true); setLoading(false); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+      () => { setLocationDenied(true); setLoading(false); }
+    );
+  }, []);
+
+  // Fetch cards when location/filters change
+  useEffect(() => {
+    if (!userLocation) return;
+    setLoading(true);
+    supabase.rpc("get_discover_events", {
+      p_lat: userLocation.lat,
+      p_lng: userLocation.lng,
+      p_radius_km: radius,
+      p_date_from: dateFrom,
+      p_date_to: dateTo || null,
+      p_category: category || null,
+      p_limit: 20,
+    }).then(({ data }) => {
+      setCards(data || []);
+      setCurrentIndex(0);
+      setLoading(false);
+    });
+  }, [userLocation, radius, dateFrom, dateTo, category]);
+
+  const currentCard = cards[currentIndex];
+  const behindCard1 = cards[currentIndex + 1];
+  const behindCard2 = cards[currentIndex + 2];
+
+  const handleSwipe = async (direction) => {
+    if (!currentCard || !user) return;
+    setSwipeDir(direction);
+    await supabase.rpc("handle_swipe", { p_event_id: currentCard.id, p_direction: direction });
+    // Wait for animation
+    setTimeout(() => {
+      setSwipeDir(null);
+      setCurrentIndex((prev) => prev + 1);
+    }, 350);
+  };
+
+  // Pointer handlers for swipe gesture
+  const onPointerDown = (e) => {
+    if (swipeDir) return;
+    dragRef.current = { startX: e.clientX, startY: e.clientY, currentX: 0, isDragging: true };
+    if (cardRef.current) cardRef.current.setPointerCapture(e.pointerId);
+  };
+
+  const onPointerMove = (e) => {
+    if (!dragRef.current.isDragging || swipeDir) return;
+    const dx = e.clientX - dragRef.current.startX;
+    dragRef.current.currentX = dx;
+    if (cardRef.current) {
+      const rotate = dx * 0.05;
+      cardRef.current.style.transform = `translate(${dx}px, 0) rotate(${rotate}deg)`;
+    }
+    // Swipe indicators
+    const opacity = Math.min(Math.abs(dx) / 100, 1);
+    if (indicatorRightRef.current) indicatorRightRef.current.style.opacity = dx > 30 ? opacity : 0;
+    if (indicatorLeftRef.current) indicatorLeftRef.current.style.opacity = dx < -30 ? opacity : 0;
+  };
+
+  const onPointerUp = () => {
+    if (!dragRef.current.isDragging) return;
+    dragRef.current.isDragging = false;
+    const dx = dragRef.current.currentX;
+
+    // Reset indicators
+    if (indicatorRightRef.current) indicatorRightRef.current.style.opacity = 0;
+    if (indicatorLeftRef.current) indicatorLeftRef.current.style.opacity = 0;
+
+    if (Math.abs(dx) > 100) {
+      handleSwipe(dx > 0 ? "right" : "left");
+    } else {
+      // Spring back
+      if (cardRef.current) {
+        cardRef.current.style.transition = "transform 0.3s ease";
+        cardRef.current.style.transform = "";
+        setTimeout(() => { if (cardRef.current) cardRef.current.style.transition = ""; }, 300);
+      }
+    }
+  };
+
+  const renderCard = (card, className, ref) => (
+    <div className={`discover-card ${className}`} ref={ref} key={card.id}>
+      {card.image_url ? (
+        <img className="discover-card-image" src={card.image_url} alt="" draggable="false" />
+      ) : (
+        <div className="discover-card-image-placeholder">
+          {t(`cat.${card.category}`)?.[0] || "?"}
+        </div>
+      )}
+      <div className="discover-card-body">
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <span className="event-card-category">{t(`cat.${card.category}`)}</span>
+          {card.join_mode === "approval_required" && (
+            <span className="discover-approval-badge">{t("discover.approvalRequired")}</span>
+          )}
+          {card.distance_km != null && (
+            <span className="discover-card-distance">{card.distance_km} {t("discover.km")}</span>
+          )}
+        </div>
+        <div className="discover-card-title">{card.title}</div>
+        <div className="discover-card-meta">
+          <span>{formatDate(card.date, lang)}</span>
+          <span>{card.time?.slice(0, 5)} · {card.area_name}</span>
+        </div>
+        <div className="discover-card-footer">
+          <div className="discover-card-attendees">
+            {card.attendee_preview && card.attendee_preview.length > 0 && (
+              <div className="avatar-stack">
+                {card.attendee_preview.slice(0, 5).map((a, i) => (
+                  <Avatar key={i} name={a.name} avatarUrl={a.avatar_url} size={24} />
+                ))}
+              </div>
+            )}
+            <div className="discover-card-stats">
+              <strong>{card.going_count || 0}</strong> {t("discover.going")}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Location denied
+  if (locationDenied) {
+    return (
+      <div className="discover-page">
+        <div className="discover-location-prompt">
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📍</div>
+          <h3>{t("discover.enableLocation")}</h3>
+          <button className="btn btn-primary" onClick={() => {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => { setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocationDenied(false); },
+              () => {}
+            );
+          }}>{t("discover.enableLocation")}</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Not logged in
+  if (!user) {
+    return (
+      <div className="discover-page">
+        <div className="page-header">
+          <h1>{t("discover.title")}</h1>
+          <p>{t("discover.subtitle")}</p>
+        </div>
+        <div className="discover-empty">
+          <div className="discover-empty-icon">👋</div>
+          <h3>{t("nav.login")}</h3>
+          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => onNavigate("login")}>{t("nav.login")}</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="discover-page">
+      <div className="page-header">
+        <h1>{t("discover.title")}</h1>
+        <p>{t("discover.subtitle")}</p>
+      </div>
+
+      {/* Filter toggle */}
+      <div className="discover-filter-toggle">
+        <button onClick={() => setFiltersOpen(!filtersOpen)}>
+          ⚙ {t("discover.filters")} ({radius} km)
+        </button>
+      </div>
+
+      {/* Filter panel */}
+      {filtersOpen && (
+        <div className="discover-filter-panel">
+          <div className="discover-filter-group">
+            <label>{t("discover.radius")}: <span className="discover-radius-value">{radius} km</span></label>
+            <input type="range" className="discover-radius-slider" min="1" max="100" value={radius} onChange={(e) => setRadius(parseInt(e.target.value))} />
+          </div>
+          <div className="discover-filter-row">
+            <div className="discover-filter-group">
+              <label>{t("discover.dateFrom")}</label>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="filter-select" />
+            </div>
+            <div className="discover-filter-group">
+              <label>{t("discover.dateTo")}</label>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="filter-select" />
+            </div>
+          </div>
+          <div className="discover-filter-group">
+            <label>{t("form.category")}</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="filter-select">
+              <option value="">{t("events.allCategories")}</option>
+              {CATEGORIES.map((c) => <option key={c} value={c}>{t(`cat.${c}`)}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="loading">{t("events.loading")}</div>
+      ) : !currentCard ? (
+        <div className="discover-empty">
+          <div className="discover-empty-icon">🔍</div>
+          <h3>{t("discover.noMore")}</h3>
+          <p>{t("discover.noMoreHint")}</p>
+        </div>
+      ) : (
+        <>
+          <div className="discover-card-stack">
+            {behindCard2 && renderCard(behindCard2, "behind-2", null)}
+            {behindCard1 && renderCard(behindCard1, "behind-1", null)}
+            <div
+              className={`discover-card top ${swipeDir === "right" ? "swiping-right" : swipeDir === "left" ? "swiping-left" : ""}`}
+              ref={cardRef}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              key={currentCard.id}
+            >
+              <div className="swipe-indicator right" ref={indicatorRightRef}>{t("discover.interested")}</div>
+              <div className="swipe-indicator left" ref={indicatorLeftRef}>{t("discover.pass")}</div>
+              {currentCard.image_url ? (
+                <img className="discover-card-image" src={currentCard.image_url} alt="" draggable="false" />
+              ) : (
+                <div className="discover-card-image-placeholder">
+                  {t(`cat.${currentCard.category}`)?.[0] || "?"}
+                </div>
+              )}
+              <div className="discover-card-body">
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <span className="event-card-category">{t(`cat.${currentCard.category}`)}</span>
+                  {currentCard.join_mode === "approval_required" && (
+                    <span className="discover-approval-badge">{t("discover.approvalRequired")}</span>
+                  )}
+                  {currentCard.distance_km != null && (
+                    <span className="discover-card-distance">{currentCard.distance_km} {t("discover.km")}</span>
+                  )}
+                </div>
+                <div className="discover-card-title">{currentCard.title}</div>
+                <div className="discover-card-meta">
+                  <span>{formatDate(currentCard.date, lang)}</span>
+                  <span>{currentCard.time?.slice(0, 5)} · {currentCard.area_name}</span>
+                </div>
+                <div className="discover-card-footer">
+                  <div className="discover-card-attendees">
+                    {currentCard.attendee_preview && currentCard.attendee_preview.length > 0 && (
+                      <div className="avatar-stack">
+                        {currentCard.attendee_preview.slice(0, 5).map((a, i) => (
+                          <Avatar key={i} name={a.name} avatarUrl={a.avatar_url} size={24} />
+                        ))}
+                      </div>
+                    )}
+                    <div className="discover-card-stats">
+                      <strong>{currentCard.going_count || 0}</strong> {t("discover.going")}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="discover-actions">
+            <button className="discover-btn pass" onClick={() => handleSwipe("left")} title={t("discover.pass")}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+            <button className="discover-btn details" onClick={() => onNavigate("event-detail", { eventId: currentCard.id })} title="Details">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+            </button>
+            <button className="discover-btn interested" onClick={() => handleSwipe("right")} title={t("discover.interested")}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // EVENT FORM
 // ============================================================
 
@@ -1744,7 +2066,7 @@ function EventFormPage({ eventId, user, onNavigate }) {
   const [form, setForm] = useState({
     title: "", description: "", date: "", time: "", end_time: "",
     location: "", category: "Technology", visibility: "public",
-    max_attendees: "",
+    join_mode: "open", max_attendees: "",
   });
   const [images, setImages] = useState([]);
   const [error, setError] = useState("");
@@ -1761,6 +2083,7 @@ function EventFormPage({ eventId, user, onNavigate }) {
             time: data.time?.slice(0, 5) || "", end_time: data.end_time?.slice(0, 5) || "",
             location: data.location, category: data.category,
             visibility: data.visibility || "public",
+            join_mode: data.join_mode || "open",
             max_attendees: data.max_attendees != null ? String(data.max_attendees) : "",
           });
           if (data.images && data.images.length > 0) {
@@ -1796,6 +2119,7 @@ function EventFormPage({ eventId, user, onNavigate }) {
       time: form.time, end_time: form.end_time || null, location: form.location,
       image_url: images.length > 0 ? images[0] : null, category: form.category,
       visibility: form.visibility,
+      join_mode: form.join_mode,
       latitude: geo ? geo.lat : null,
       longitude: geo ? geo.lng : null,
       max_attendees: parseInt(form.max_attendees) || null,
@@ -1882,6 +2206,14 @@ function EventFormPage({ eventId, user, onNavigate }) {
                 <option value="public">{t("form.public")}</option>
                 <option value="semi_public">{t("form.semiPublic")}</option>
               </select>
+            </div>
+            <div className="form-group">
+              <label>{t("form.joinMode")}</label>
+              <select value={form.join_mode} onChange={update("join_mode")}>
+                <option value="open">{t("form.joinOpen")}</option>
+                <option value="approval_required">{t("form.joinApproval")}</option>
+              </select>
+              <small style={{ color: "#888", fontSize: 12, marginTop: 4, display: "block" }}>{t("form.joinModeHint")}</small>
             </div>
             <div className="form-group">
               <label>{t("form.maxAttendees")}</label>
@@ -2216,6 +2548,7 @@ export default function App() {
         <Navbar user={user} currentPage={page} onNavigate={navigate} onLogout={logout} />
 
         {page === "events" && <EventsPage onNavigate={navigate} />}
+        {page === "discover" && <DiscoverPage user={user} onNavigate={navigate} />}
         {page === "map" && <MapPage onNavigate={navigate} />}
         {page === "event-detail" && <EventDetailPage eventId={pageData.eventId} user={user} onNavigate={navigate} />}
         {page === "checkin" && <CheckinPage eventId={pageData.eventId} user={user} onNavigate={navigate} />}
