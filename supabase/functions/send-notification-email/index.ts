@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "Drikkepress <noreply@drikkepress.no>";
+const FROM_EMAIL = Deno.env.get("FROM_EMAIL") || "Hapn <noreply@hapn.no>";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -119,9 +119,9 @@ serve(async (req) => {
         subject,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
-            <h2 style="color: #1a1a2e; margin-bottom: 16px;">Drikkepress</h2>
+            <h2 style="color: #1a1a2e; margin-bottom: 16px;">Hapn</h2>
             ${body}
-            <p style="color: #888; font-size: 13px; margin-top: 24px;">Du kan endre varslingsinnstillingene dine i profilen din på Drikkepress.</p>
+            <p style="color: #888; font-size: 13px; margin-top: 24px;">Du kan endre varslingsinnstillingene dine i profilen din på Hapn.</p>
           </div>
         `,
       }),
