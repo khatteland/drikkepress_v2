@@ -3281,10 +3281,31 @@ body {
 
   .profile-stats {
     justify-content: center;
+    flex-wrap: wrap;
+    gap: 16px 20px;
+  }
+
+  .profile-stat-label {
+    font-size: 10px;
   }
 
   .profile-tabs .filter-tabs {
     width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+  }
+
+  .profile-tabs .filter-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .profile-tabs .filter-tab {
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 13px;
+    padding: 8px 12px;
   }
 
   .rsvp-buttons {
