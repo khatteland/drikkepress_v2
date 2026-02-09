@@ -6,7 +6,7 @@ export const CATEGORIES = [
 export const translations = {
   no: {
     // Nav
-    "nav.brand": "Drikkepress",
+    "nav.brand": "Hapn",
     "nav.events": "Events",
     "nav.map": "Kart",
     "nav.newEvent": "+ Nytt event",
@@ -242,7 +242,7 @@ export const translations = {
 
   en: {
     // Nav
-    "nav.brand": "Drikkepress",
+    "nav.brand": "Hapn",
     "nav.events": "Events",
     "nav.map": "Map",
     "nav.newEvent": "+ New Event",

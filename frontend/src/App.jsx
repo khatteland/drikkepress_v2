@@ -112,11 +112,11 @@ function generateIcsFile(event) {
     const h = parseInt(startTime.slice(0, 2)) + 2;
     endTime = String(h).padStart(2, "0") + startTime.slice(2);
   }
-  const uid = `${event.id}-${startDate}@drikkepress`;
+  const uid = `${event.id}-${startDate}@hapn`;
   const ics = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Drikkepress//Event//EN",
+    "PRODID:-//Hapn//Event//EN",
     "BEGIN:VEVENT",
     `UID:${uid}`,
     `DTSTART:${startDate}T${startTime}`,
@@ -654,7 +654,7 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
   return (
     <nav className="navbar">
       <div className="navbar-brand" onClick={() => nav("events")}>
-        <img src="/logo.png" alt="Drikkepress" className="navbar-logo" />
+        <img src="/logo.png" alt="Hapn" className="navbar-logo" />
       </div>
 
       {/* Desktop links */}

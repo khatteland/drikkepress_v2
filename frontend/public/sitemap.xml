@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://drikkepress.com/</loc>
+    <loc>https://hapn.no/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://drikkepress.com/map</loc>
+    <loc>https://hapn.no/map</loc>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://drikkepress.com/login</loc>
+    <loc>https://hapn.no/login</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://drikkepress.com/register</loc>
+    <loc>https://hapn.no/register</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
