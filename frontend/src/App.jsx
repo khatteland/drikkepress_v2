@@ -151,6 +151,11 @@ function parseUrl(pathname) {
   if (pathname === "/register") return { page: "register", data: {} };
   if (pathname === "/profile") return { page: "profile", data: {} };
 
+  if (pathname === "/friends") return { page: "friends", data: {} };
+
+  const userMatch = pathname.match(/^\/user\/([a-f0-9-]+)$/);
+  if (userMatch) return { page: "user-profile", data: { userId: userMatch[1] } };
+
   const checkinMatch = pathname.match(/^\/event\/(\d+)\/checkin$/);
   if (checkinMatch) return { page: "checkin", data: { eventId: parseInt(checkinMatch[1]) } };
 
@@ -175,6 +180,8 @@ function pageToUrl(page, data = {}) {
     case "event-detail": return `/event/${data.eventId}`;
     case "edit-event": return `/edit/${data.eventId}`;
     case "checkin": return `/event/${data.eventId}/checkin`;
+    case "friends": return "/friends";
+    case "user-profile": return `/user/${data.userId}`;
     default: return "/";
   }
 }
@@ -353,7 +360,11 @@ function NotificationBell({ user, onNavigate }) {
       await supabase.from("notifications").update({ is_read: true }).eq("id", notif.id);
     }
     setOpen(false);
-    onNavigate("event-detail", { eventId: notif.event_id });
+    if (notif.type === "follow_request" || notif.type === "follow_accepted") {
+      onNavigate("user-profile", { userId: notif.actor_id });
+    } else {
+      onNavigate("event-detail", { eventId: notif.event_id });
+    }
     loadNotifications();
   };
 
@@ -372,6 +383,8 @@ function NotificationBell({ user, onNavigate }) {
       case "reminder": return t("notif.reminder");
       case "waitlist_promoted": return t("notif.waitlist_promoted");
       case "kicked": return <><strong>{actor}</strong> {t("notif.kicked")}</>;
+      case "follow_request": return <><strong>{actor}</strong> {t("notif.follow_request")}</>;
+      case "follow_accepted": return <><strong>{actor}</strong> {t("notif.follow_accepted")}</>;
       default: return notif.type;
     }
   };
@@ -601,7 +614,11 @@ function NotificationDropdown({ notifications, unreadCount, onNavigate, onMarkAl
     if (!notif.is_read) {
       await supabase.from("notifications").update({ is_read: true }).eq("id", notif.id);
     }
-    onNavigate("event-detail", { eventId: notif.event_id });
+    if (notif.type === "follow_request" || notif.type === "follow_accepted") {
+      onNavigate("user-profile", { userId: notif.actor_id });
+    } else {
+      onNavigate("event-detail", { eventId: notif.event_id });
+    }
     onRefresh();
   };
 
@@ -615,6 +632,8 @@ function NotificationDropdown({ notifications, unreadCount, onNavigate, onMarkAl
       case "reminder": return t("notif.reminder");
       case "waitlist_promoted": return t("notif.waitlist_promoted");
       case "kicked": return <><strong>{actor}</strong> {t("notif.kicked")}</>;
+      case "follow_request": return <><strong>{actor}</strong> {t("notif.follow_request")}</>;
+      case "follow_accepted": return <><strong>{actor}</strong> {t("notif.follow_accepted")}</>;
       default: return notif.type;
     }
   };
@@ -670,6 +689,11 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
         <button className={currentPage === "map" ? "active" : ""} onClick={() => nav("map")}>
           {t("nav.map")}
         </button>
+        {user && (
+          <button className={currentPage === "friends" ? "active" : ""} onClick={() => nav("friends")}>
+            {t("nav.friends")}
+          </button>
+        )}
         {user ? (
           <div className="navbar-user">
             <button className="btn-primary" onClick={() => nav("create-event")}>
@@ -1623,14 +1647,14 @@ function EventDetailPage({ eventId, user, onNavigate }) {
                 <div className="attendees-list">
                   {event.going_users.map((u) => (
                     isAdmin && u.id !== user.id ? (
-                      <span key={u.id} className="attendee-chip-with-action">
+                      <span key={u.id} className="attendee-chip-with-action clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
                         <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
                         {u.name}
                         {u.checked_in_at && event.qr_enabled && <span style={{ color: "#16a34a", fontSize: 11 }}>&#10003;</span>}
-                        <button className="attendee-kick-btn" onClick={() => handleKick(u.id)}>{t("kick.button")}</button>
+                        <button className="attendee-kick-btn" onClick={(e) => { e.stopPropagation(); handleKick(u.id); }}>{t("kick.button")}</button>
                       </span>
                     ) : (
-                      <span key={u.id} className="attendee-chip">
+                      <span key={u.id} className="attendee-chip clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
                         <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
                         {u.name}
                         {u.checked_in_at && event.qr_enabled && <span style={{ color: "#16a34a", fontSize: 11 }}>&#10003;</span>}
@@ -1646,13 +1670,13 @@ function EventDetailPage({ eventId, user, onNavigate }) {
                 <div className="attendees-list">
                   {event.interested_users.map((u) => (
                     isAdmin && u.id !== user.id ? (
-                      <span key={u.id} className="attendee-chip-with-action">
+                      <span key={u.id} className="attendee-chip-with-action clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
                         <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
                         {u.name}
-                        <button className="attendee-kick-btn" onClick={() => handleKick(u.id)}>{t("kick.button")}</button>
+                        <button className="attendee-kick-btn" onClick={(e) => { e.stopPropagation(); handleKick(u.id); }}>{t("kick.button")}</button>
                       </span>
                     ) : (
-                      <span key={u.id} className="attendee-chip">
+                      <span key={u.id} className="attendee-chip clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
                         <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
                         {u.name}
                       </span>
@@ -1666,7 +1690,7 @@ function EventDetailPage({ eventId, user, onNavigate }) {
                 <h3 style={{ marginTop: 16 }}>{t("detail.waitlistTitle")} ({event.waitlisted_users.length})</h3>
                 <div className="attendees-list">
                   {event.waitlisted_users.map((u) => (
-                    <span key={u.id} className="attendee-chip waitlisted">
+                    <span key={u.id} className="attendee-chip waitlisted clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
                       <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
                       {u.name}
                     </span>
@@ -2368,30 +2392,289 @@ function RegisterPage({ onNavigate }) {
 // PROFILE PAGE
 // ============================================================
 
+// ============================================================
+// FRIENDS ACTIVITY FEED (reusable)
+// ============================================================
+
+function FriendsActivityFeed({ user, onNavigate }) {
+  const { t, lang } = useI18n();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  const loadFeed = useCallback(async (reset = false) => {
+    const newOffset = reset ? 0 : offset;
+    const { data } = await supabase.rpc("get_friends_activity", { p_limit: 20, p_offset: newOffset });
+    const results = data || [];
+    if (reset) {
+      setItems(results);
+      setOffset(results.length);
+    } else {
+      setItems((prev) => [...prev, ...results]);
+      setOffset((prev) => prev + results.length);
+    }
+    setHasMore(results.length === 20);
+    setLoading(false);
+  }, [offset]);
+
+  useEffect(() => {
+    if (user) loadFeed(true);
+  }, [user]);
+
+  if (loading) return <div className="loading">{t("loading")}</div>;
+
+  if (items.length === 0) {
+    return (
+      <div className="empty-state">
+        <div className="empty-state-icon">👥</div>
+        <h3>{t("friends.empty")}</h3>
+        <p>{t("friends.emptyHint")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="friends-feed">
+      {items.map((item, i) => (
+        <div key={i} className="friends-feed-item" onClick={() => onNavigate("event-detail", { eventId: item.event_id })}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="friends-feed-action">
+              <span className="friends-feed-user" onClick={(e) => { e.stopPropagation(); onNavigate("user-profile", { userId: item.user_id }); }} style={{ cursor: "pointer", display: "inline-flex" }}>
+                <Avatar name={item.user_name} avatarUrl={item.user_avatar_url} size={28} />
+                <strong>{item.user_name}</strong>
+              </span>
+              {" "}
+              {item.rsvp_status === "going" ? t("friends.isGoing") : t("friends.isInterested")}
+            </div>
+            <div className="friends-feed-event-title">{item.event_title}</div>
+            <div className="friends-feed-event-meta">
+              {formatShortDate(item.event_date, lang)} · {item.event_time?.slice(0, 5)} · {item.event_location}
+            </div>
+          </div>
+          {item.event_image_url && (
+            <img className="friends-feed-event-image" src={item.event_image_url} alt="" />
+          )}
+        </div>
+      ))}
+      {hasMore && (
+        <div style={{ textAlign: "center", marginTop: 8 }}>
+          <button className="btn btn-secondary" onClick={() => loadFeed(false)}>{t("friends.loadMore")}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// FRIENDS ACTIVITY PAGE (/friends)
+// ============================================================
+
+function FriendsActivityPage({ user, onNavigate }) {
+  const { t } = useI18n();
+
+  if (!user) { onNavigate("login"); return null; }
+
+  return (
+    <div className="container">
+      <div className="page-header">
+        <h1>{t("friends.title")}</h1>
+        <p>{t("friends.subtitle")}</p>
+      </div>
+      <FriendsActivityFeed user={user} onNavigate={onNavigate} />
+    </div>
+  );
+}
+
+// ============================================================
+// USER PROFILE PAGE (/user/:userId)
+// ============================================================
+
+function UserProfilePage({ userId, user, onNavigate }) {
+  const { t, lang } = useI18n();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [activeTab, setActiveTab] = useState("going");
+
+  const loadProfile = useCallback(async () => {
+    const { data } = await supabase.rpc("get_user_profile", { target_user_id: userId });
+    setProfile(data);
+    setLoading(false);
+  }, [userId]);
+
+  useEffect(() => { loadProfile(); }, [loadProfile]);
+
+  useEffect(() => {
+    if (profile && profile.is_own_profile) {
+      onNavigate("profile");
+    }
+  }, [profile, onNavigate]);
+
+  const handleFollow = async () => {
+    if (!user) return onNavigate("login");
+    setFollowLoading(true);
+    await supabase.rpc("toggle_follow", { target_user_id: userId });
+    await loadProfile();
+    setFollowLoading(false);
+  };
+
+  if (loading) return <div className="loading">{t("loading")}</div>;
+  if (!profile) return <div className="loading">{t("detail.notFound")}</div>;
+
+  const followBtn = () => {
+    if (profile.follow_status === "active") {
+      return <button className="follow-btn following" onClick={handleFollow} disabled={followLoading}>{t("profile.unfollowButton")}</button>;
+    } else if (profile.follow_status === "pending") {
+      return <button className="follow-btn requested" disabled>{t("profile.followRequested")}</button>;
+    }
+    return <button className="follow-btn follow" onClick={handleFollow} disabled={followLoading}>{t("profile.followButton")}</button>;
+  };
+
+  const tabEvents = activeTab === "going" ? (profile.going_events || []) : (profile.created_events || []);
+
+  return (
+    <div className="container">
+      <button className="back-button" onClick={() => window.history.back()}>{t("detail.back")}</button>
+
+      <div className="profile-header">
+        <div className="profile-avatar">
+          {profile.avatar_url ? (
+            <img className="avatar-img" src={profile.avatar_url} alt={profile.name} />
+          ) : (
+            profile.name?.[0] || "?"
+          )}
+        </div>
+        <div className="profile-info">
+          <h2>
+            {profile.name}
+            {profile.is_plus && <span className="profile-plus-badge">{t("plus.badge")}</span>}
+          </h2>
+          {profile.bio && <p className="profile-bio">{profile.bio}</p>}
+          <div className="profile-stats">
+            <div className="profile-stat-item">
+              <span className="profile-stat-number">{profile.follower_count || 0}</span>
+              <span className="profile-stat-label">{t("profile.stats.followers")}</span>
+            </div>
+            <div className="profile-stat-item">
+              <span className="profile-stat-number">{profile.following_count || 0}</span>
+              <span className="profile-stat-label">{t("profile.stats.following")}</span>
+            </div>
+          </div>
+          {user && profile.follow_status !== "own" && (
+            <div style={{ marginTop: 12 }}>{followBtn()}</div>
+          )}
+        </div>
+      </div>
+
+      {/* Photo gallery */}
+      {profile.photos && profile.photos.length > 0 && (
+        <div className="user-profile-gallery">
+          {profile.photos.map((p) => (
+            <img key={p.id} src={p.image_url} alt="" onClick={() => setLightboxUrl(p.image_url)} />
+          ))}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="profile-tabs">
+        <div className="filter-tabs">
+          {profile.can_see_activity && (
+            <button className={`filter-tab${activeTab === "going" ? " active" : ""}`} onClick={() => setActiveTab("going")}>
+              {t("profile.goingTab")} ({(profile.going_events || []).length})
+            </button>
+          )}
+          <button className={`filter-tab${activeTab === "created" ? " active" : ""}`} onClick={() => setActiveTab("created")}>
+            {t("profile.createdTab")} ({(profile.created_events || []).length})
+          </button>
+        </div>
+      </div>
+
+      {!profile.can_see_activity && activeTab === "going" ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">🔒</div>
+          <p>{t("profile.activityPrivate")}</p>
+        </div>
+      ) : (
+        <div className="profile-section">
+          {tabEvents.length > 0 ? (
+            <div className="profile-events-grid">
+              {tabEvents.map((e) => (
+                <EventCard key={e.id} event={{ ...e, going_count: 0, interested_count: 0, creator_name: "" }}
+                  onClick={() => onNavigate("event-detail", { eventId: e.id })} />
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-state-icon">{activeTab === "going" ? "🎟️" : "🎪"}</div>
+              <p>{activeTab === "going" ? t("profile.noAttending") : t("profile.noEvents")}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {lightboxUrl && (
+        <div className="lightbox" onClick={() => setLightboxUrl(null)}>
+          <button className="lightbox-close" onClick={() => setLightboxUrl(null)}>×</button>
+          <img src={lightboxUrl} alt="" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// PROFILE PAGE (own profile — enhanced with social features)
+// ============================================================
+
 function ProfilePage({ user, onNavigate, onAvatarChange }) {
   const { t, lang } = useI18n();
   const [createdEvents, setCreatedEvents] = useState([]);
   const [attendingEvents, setAttendingEvents] = useState([]);
   const [interestedEvents, setInterestedEvents] = useState([]);
+  const [photos, setPhotos] = useState([]);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [pendingFollows, setPendingFollows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [activeTab, setActiveTab] = useState("going");
   const [prefsOpen, setPrefsOpen] = useState(false);
+  const [bio, setBio] = useState("");
+  const [editingBio, setEditingBio] = useState(false);
+  const [bioText, setBioText] = useState("");
+  const [visibility, setVisibility] = useState("public");
+  const [photoUploading, setPhotoUploading] = useState(false);
   const avatarFileRef = useRef(null);
+  const photoFileRef = useRef(null);
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!user) return;
-    Promise.all([
+    const [created, attending, interested, photosRes, profileRes, followersRes, followingRes, pendingRes] = await Promise.all([
       supabase.from("events").select("*").eq("creator_id", user.id),
       supabase.from("rsvps").select("events(*)").eq("user_id", user.id).eq("status", "going"),
       supabase.from("rsvps").select("events(*)").eq("user_id", user.id).eq("status", "interested"),
-    ]).then(([created, attending, interested]) => {
-      setCreatedEvents(created.data || []);
-      setAttendingEvents((attending.data || []).map((r) => r.events).filter(Boolean));
-      setInterestedEvents((interested.data || []).map((r) => r.events).filter(Boolean));
-      setLoading(false);
-    });
+      supabase.from("profile_photos").select("*").eq("user_id", user.id).order("position"),
+      supabase.from("profiles").select("bio, activity_visibility").eq("id", user.id).single(),
+      supabase.from("follows").select("id", { count: "exact" }).eq("following_id", user.id).eq("status", "active"),
+      supabase.from("follows").select("id", { count: "exact" }).eq("follower_id", user.id).eq("status", "active"),
+      supabase.from("follows").select("*, follower:profiles!follower_id(id, name, avatar_url)").eq("following_id", user.id).eq("status", "pending"),
+    ]);
+    setCreatedEvents(created.data || []);
+    setAttendingEvents((attending.data || []).map((r) => r.events).filter(Boolean));
+    setInterestedEvents((interested.data || []).map((r) => r.events).filter(Boolean));
+    setPhotos(photosRes.data || []);
+    setBio(profileRes.data?.bio || "");
+    setBioText(profileRes.data?.bio || "");
+    setVisibility(profileRes.data?.activity_visibility || "public");
+    setFollowerCount(followersRes.count || 0);
+    setFollowingCount(followingRes.count || 0);
+    setPendingFollows(pendingRes.data || []);
+    setLoading(false);
   }, [user]);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -2410,10 +2693,48 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
     if (avatarFileRef.current) avatarFileRef.current.value = "";
   };
 
+  const handleBioSave = async () => {
+    await supabase.from("profiles").update({ bio: bioText }).eq("id", user.id);
+    setBio(bioText);
+    setEditingBio(false);
+  };
+
+  const handleVisibilityChange = async (val) => {
+    setVisibility(val);
+    await supabase.from("profiles").update({ activity_visibility: val }).eq("id", user.id);
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || photos.length >= 6) return;
+    setPhotoUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${user.id}/photos/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const url = await uploadImage(file, path);
+      await supabase.from("profile_photos").insert({ user_id: user.id, image_url: url, position: photos.length });
+      loadData();
+    } catch (err) {
+      console.error("Photo upload error:", err);
+    }
+    setPhotoUploading(false);
+    if (photoFileRef.current) photoFileRef.current.value = "";
+  };
+
+  const handlePhotoDelete = async (photoId) => {
+    await supabase.from("profile_photos").delete().eq("id", photoId);
+    loadData();
+  };
+
+  const handleFollowAction = async (followerId, action) => {
+    await supabase.rpc("handle_follow_request", { p_follower_id: followerId, p_action: action });
+    loadData();
+  };
+
   if (!user) { onNavigate("login"); return null; }
   if (loading) return <div className="loading">{t("profile.loading")}</div>;
 
-  const tabEvents = activeTab === "going" ? attendingEvents : activeTab === "interested" ? interestedEvents : createdEvents;
+  const tabEvents = activeTab === "going" ? attendingEvents : activeTab === "interested" ? interestedEvents : activeTab === "created" ? createdEvents : null;
 
   return (
     <div className="container">
@@ -2437,6 +2758,22 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
             {user.is_plus && <span className="profile-plus-badge">{t("plus.badge")}</span>}
           </h2>
           <p>{user.email}</p>
+
+          {/* Bio */}
+          {editingBio ? (
+            <div className="profile-bio-edit">
+              <textarea value={bioText} onChange={(e) => setBioText(e.target.value)} placeholder={t("profile.bioPlaceholder")} maxLength={300} />
+              <div className="bio-actions">
+                <button className="btn btn-primary btn-sm" onClick={handleBioSave}>{t("profile.bioSave")}</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => { setEditingBio(false); setBioText(bio); }}>{t("detail.cancel")}</button>
+              </div>
+            </div>
+          ) : (
+            <p className="profile-bio" style={{ cursor: "pointer" }} onClick={() => setEditingBio(true)}>
+              {bio || <span style={{ color: "#bbb" }}>{t("profile.bioPlaceholder")}</span>}
+            </p>
+          )}
+
           <div className="profile-stats">
             <div className="profile-stat-item">
               <span className="profile-stat-number">{createdEvents.length}</span>
@@ -2450,10 +2787,67 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
               <span className="profile-stat-number">{interestedEvents.length}</span>
               <span className="profile-stat-label">{t("profile.stats.interested")}</span>
             </div>
+            <div className="profile-stat-item">
+              <span className="profile-stat-number">{followerCount}</span>
+              <span className="profile-stat-label">{t("profile.stats.followers")}</span>
+            </div>
+            <div className="profile-stat-item">
+              <span className="profile-stat-number">{followingCount}</span>
+              <span className="profile-stat-label">{t("profile.stats.following")}</span>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Pending follow requests */}
+      {pendingFollows.length > 0 && (
+        <div className="follow-requests-section">
+          <h3>{t("profile.followRequests")} ({pendingFollows.length})</h3>
+          {pendingFollows.map((f) => (
+            <div key={f.id} className="follow-request-item">
+              <div className="follow-request-user" onClick={() => onNavigate("user-profile", { userId: f.follower.id })} style={{ cursor: "pointer" }}>
+                <Avatar name={f.follower.name} avatarUrl={f.follower.avatar_url} size={32} />
+                {f.follower.name}
+              </div>
+              <div className="follow-request-actions">
+                <button className="btn btn-primary btn-sm" onClick={() => handleFollowAction(f.follower_id, "accept")}>{t("profile.acceptFollow")}</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => handleFollowAction(f.follower_id, "deny")}>{t("profile.denyFollow")}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Profile photos */}
+      <div className="profile-photos-section">
+        <h3>{t("profile.photos")}</h3>
+        <div className="profile-photos-grid">
+          {photos.map((p) => (
+            <div key={p.id} className="profile-photo-item">
+              <img src={p.image_url} alt="" />
+              <button className="remove-btn" onClick={() => handlePhotoDelete(p.id)}>×</button>
+            </div>
+          ))}
+          {photos.length < 6 && (
+            <button className="add-photo-btn" onClick={() => photoFileRef.current?.click()} disabled={photoUploading}>
+              {photoUploading ? <span>{t("form.uploading")}</span> : <><span>+</span>{t("form.addImage")}</>}
+            </button>
+          )}
+        </div>
+        <input ref={photoFileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoUpload} />
+      </div>
+
+      {/* Privacy setting */}
+      <div className="profile-privacy-section">
+        <h3>{t("profile.activityVisibility")}</h3>
+        <select value={visibility} onChange={(e) => handleVisibilityChange(e.target.value)}>
+          <option value="public">{t("profile.visibility.public")}</option>
+          <option value="followers">{t("profile.visibility.followers")}</option>
+          <option value="private">{t("profile.visibility.private")}</option>
+        </select>
+      </div>
+
+      {/* Tabs */}
       <div className="profile-tabs">
         <div className="filter-tabs">
           <button className={`filter-tab${activeTab === "going" ? " active" : ""}`} onClick={() => setActiveTab("going")}>
@@ -2465,29 +2859,36 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
           <button className={`filter-tab${activeTab === "created" ? " active" : ""}`} onClick={() => setActiveTab("created")}>
             {t("profile.myEventsTab")} ({createdEvents.length})
           </button>
+          <button className={`filter-tab${activeTab === "friends" ? " active" : ""}`} onClick={() => setActiveTab("friends")}>
+            {t("profile.friendsTab")}
+          </button>
         </div>
       </div>
 
-      <div className="profile-section">
-        {tabEvents.length > 0 ? (
-          <div className="profile-events-grid">
-            {tabEvents.map((e) => (
-              <EventCard key={e.id} event={{ ...e, going_count: e.going_count || 0, interested_count: e.interested_count || 0, creator_name: activeTab === "created" ? user.name : (e.creator_name || "") }}
-                onClick={() => onNavigate("event-detail", { eventId: e.id })} />
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              {activeTab === "going" ? "🎟️" : activeTab === "interested" ? "💫" : "🎪"}
+      {activeTab === "friends" ? (
+        <FriendsActivityFeed user={user} onNavigate={onNavigate} />
+      ) : (
+        <div className="profile-section">
+          {tabEvents && tabEvents.length > 0 ? (
+            <div className="profile-events-grid">
+              {tabEvents.map((e) => (
+                <EventCard key={e.id} event={{ ...e, going_count: e.going_count || 0, interested_count: e.interested_count || 0, creator_name: activeTab === "created" ? user.name : (e.creator_name || "") }}
+                  onClick={() => onNavigate("event-detail", { eventId: e.id })} />
+              ))}
             </div>
-            <p>{activeTab === "going" ? t("profile.noAttending") : activeTab === "interested" ? t("profile.noInterested") : t("profile.noEvents")}</p>
-            <button className="btn btn-primary" onClick={() => onNavigate(activeTab === "created" ? "create-event" : activeTab === "interested" ? "discover" : "events")}>
-              {activeTab === "going" ? t("profile.findEvents") : activeTab === "interested" ? t("profile.discoverEvents") : t("profile.createFirst")}
-            </button>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                {activeTab === "going" ? "🎟️" : activeTab === "interested" ? "💫" : "🎪"}
+              </div>
+              <p>{activeTab === "going" ? t("profile.noAttending") : activeTab === "interested" ? t("profile.noInterested") : t("profile.noEvents")}</p>
+              <button className="btn btn-primary" onClick={() => onNavigate(activeTab === "created" ? "create-event" : activeTab === "interested" ? "discover" : "events")}>
+                {activeTab === "going" ? t("profile.findEvents") : activeTab === "interested" ? t("profile.discoverEvents") : t("profile.createFirst")}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="profile-prefs-collapsible">
         <button className="profile-prefs-toggle" onClick={() => setPrefsOpen(!prefsOpen)}>
@@ -2588,6 +2989,8 @@ export default function App() {
         {page === "login" && <LoginPage onNavigate={navigate} />}
         {page === "register" && <RegisterPage onNavigate={navigate} />}
         {page === "profile" && <ProfilePage user={user} onNavigate={navigate} onAvatarChange={(url) => setUser({ ...user, avatar_url: url })} />}
+        {page === "friends" && <FriendsActivityPage user={user} onNavigate={navigate} />}
+        {page === "user-profile" && <UserProfilePage userId={pageData.userId} user={user} onNavigate={navigate} />}
 
         <BottomTabBar user={user} currentPage={page} onNavigate={navigate} />
       </div>

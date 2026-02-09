@@ -272,6 +272,44 @@ export const translations = {
     "plus.badge": "Plus",
     "plus.member": "Plus-medlem",
 
+    // Profile social
+    "nav.friends": "Venner",
+    "profile.bio": "Bio",
+    "profile.bioPlaceholder": "Fortell litt om deg selv...",
+    "profile.bioSave": "Lagre",
+    "profile.photos": "Bilder",
+    "profile.activityVisibility": "Personvern",
+    "profile.visibility.public": "Offentlig — alle kan se aktiviteten din",
+    "profile.visibility.followers": "Kun f\u00f8lgere — kun godkjente f\u00f8lgere ser aktiviteten",
+    "profile.visibility.private": "Privat — ingen ser aktiviteten din",
+    "profile.stats.followers": "F\u00f8lgere",
+    "profile.stats.following": "F\u00f8lger",
+    "profile.friendsTab": "Venners aktivitet",
+    "profile.followRequests": "F\u00f8lgeforesp\u00f8rsler",
+    "profile.acceptFollow": "Godkjenn",
+    "profile.denyFollow": "Avsl\u00e5",
+    "profile.followButton": "F\u00f8lg",
+    "profile.unfollowButton": "Slutt \u00e5 f\u00f8lge",
+    "profile.followRequested": "Foresp\u00f8rsel sendt",
+    "profile.activityHidden": "Aktivitet skjult",
+    "profile.activityPrivate": "Denne brukeren har skjult sin aktivitet",
+    "profile.createdTab": "Opprettet",
+    "profile.memberSince": "Medlem siden",
+
+    // Friends feed
+    "friends.title": "Venners aktivitet",
+    "friends.subtitle": "Se hva vennene dine deltar p\u00e5",
+    "friends.empty": "Ingen aktivitet enn\u00e5",
+    "friends.emptyHint": "F\u00f8lg venner for \u00e5 se hva de deltar p\u00e5",
+    "friends.discoverPeople": "Finn folk \u00e5 f\u00f8lge",
+    "friends.isGoing": "skal delta p\u00e5",
+    "friends.isInterested": "er interessert i",
+    "friends.loadMore": "Last inn mer",
+
+    // Follow notifications
+    "notif.follow_request": "vil f\u00f8lge deg",
+    "notif.follow_accepted": "godkjente f\u00f8lgeforesp\u00f8rselen din",
+
     // General
     "loading": "Laster...",
   },
@@ -543,6 +581,44 @@ export const translations = {
     // Plus
     "plus.badge": "Plus",
     "plus.member": "Plus member",
+
+    // Profile social
+    "nav.friends": "Friends",
+    "profile.bio": "Bio",
+    "profile.bioPlaceholder": "Tell a bit about yourself...",
+    "profile.bioSave": "Save",
+    "profile.photos": "Photos",
+    "profile.activityVisibility": "Privacy",
+    "profile.visibility.public": "Public — everyone can see your activity",
+    "profile.visibility.followers": "Followers only — only approved followers see your activity",
+    "profile.visibility.private": "Private — no one can see your activity",
+    "profile.stats.followers": "Followers",
+    "profile.stats.following": "Following",
+    "profile.friendsTab": "Friends Activity",
+    "profile.followRequests": "Follow Requests",
+    "profile.acceptFollow": "Accept",
+    "profile.denyFollow": "Deny",
+    "profile.followButton": "Follow",
+    "profile.unfollowButton": "Unfollow",
+    "profile.followRequested": "Requested",
+    "profile.activityHidden": "Activity hidden",
+    "profile.activityPrivate": "This user has hidden their activity",
+    "profile.createdTab": "Created",
+    "profile.memberSince": "Member since",
+
+    // Friends feed
+    "friends.title": "Friends Activity",
+    "friends.subtitle": "See what your friends are up to",
+    "friends.empty": "No activity yet",
+    "friends.emptyHint": "Follow friends to see what they're attending",
+    "friends.discoverPeople": "Find people to follow",
+    "friends.isGoing": "is going to",
+    "friends.isInterested": "is interested in",
+    "friends.loadMore": "Load more",
+
+    // Follow notifications
+    "notif.follow_request": "wants to follow you",
+    "notif.follow_accepted": "accepted your follow request",
 
     // General
     "loading": "Loading...",
