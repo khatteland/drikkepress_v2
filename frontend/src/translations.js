@@ -145,6 +145,14 @@ export const translations = {
     "profile.error": "Kunne ikke laste profil",
     "profile.changeAvatar": "Endre bilde",
     "profile.uploadAvatar": "Last opp bilde",
+    "profile.goingTab": "Deltar",
+    "profile.interestedTab": "Interessert",
+    "profile.myEventsTab": "Mine events",
+    "profile.noInterested": "Du har ikke vist interesse for noen events ennå",
+    "profile.discoverEvents": "Utforsk events",
+    "profile.stats.created": "Opprettet",
+    "profile.stats.going": "Deltar",
+    "profile.stats.interested": "Interessert",
 
     // Categories
     "cat.Technology": "Teknologi",
@@ -409,6 +417,14 @@ export const translations = {
     "profile.error": "Could not load profile",
     "profile.changeAvatar": "Change photo",
     "profile.uploadAvatar": "Upload photo",
+    "profile.goingTab": "Going",
+    "profile.interestedTab": "Interested",
+    "profile.myEventsTab": "My Events",
+    "profile.noInterested": "You haven't shown interest in any events yet",
+    "profile.discoverEvents": "Discover events",
+    "profile.stats.created": "Created",
+    "profile.stats.going": "Going",
+    "profile.stats.interested": "Interested",
 
     // Categories
     "cat.Technology": "Technology",

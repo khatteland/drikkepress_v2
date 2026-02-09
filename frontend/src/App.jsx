@@ -2372,8 +2372,11 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
   const { t, lang } = useI18n();
   const [createdEvents, setCreatedEvents] = useState([]);
   const [attendingEvents, setAttendingEvents] = useState([]);
+  const [interestedEvents, setInterestedEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState("going");
+  const [prefsOpen, setPrefsOpen] = useState(false);
   const avatarFileRef = useRef(null);
 
   useEffect(() => {
@@ -2381,9 +2384,11 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
     Promise.all([
       supabase.from("events").select("*").eq("creator_id", user.id),
       supabase.from("rsvps").select("events(*)").eq("user_id", user.id).eq("status", "going"),
-    ]).then(([created, attending]) => {
+      supabase.from("rsvps").select("events(*)").eq("user_id", user.id).eq("status", "interested"),
+    ]).then(([created, attending, interested]) => {
       setCreatedEvents(created.data || []);
       setAttendingEvents((attending.data || []).map((r) => r.events).filter(Boolean));
+      setInterestedEvents((interested.data || []).map((r) => r.events).filter(Boolean));
       setLoading(false);
     });
   }, [user]);
@@ -2408,6 +2413,8 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
   if (!user) { onNavigate("login"); return null; }
   if (loading) return <div className="loading">{t("profile.loading")}</div>;
 
+  const tabEvents = activeTab === "going" ? attendingEvents : activeTab === "interested" ? interestedEvents : createdEvents;
+
   return (
     <div className="container">
       <div className="profile-header">
@@ -2425,45 +2432,69 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
         </div>
         <input ref={avatarFileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleAvatarUpload} />
         <div className="profile-info">
-          <h2>{user.name}</h2>
+          <h2>
+            {user.name}
+            {user.is_plus && <span className="profile-plus-badge">{t("plus.badge")}</span>}
+          </h2>
           <p>{user.email}</p>
+          <div className="profile-stats">
+            <div className="profile-stat-item">
+              <span className="profile-stat-number">{createdEvents.length}</span>
+              <span className="profile-stat-label">{t("profile.stats.created")}</span>
+            </div>
+            <div className="profile-stat-item">
+              <span className="profile-stat-number">{attendingEvents.length}</span>
+              <span className="profile-stat-label">{t("profile.stats.going")}</span>
+            </div>
+            <div className="profile-stat-item">
+              <span className="profile-stat-number">{interestedEvents.length}</span>
+              <span className="profile-stat-label">{t("profile.stats.interested")}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <NotificationPreferences user={user} />
+      <div className="profile-tabs">
+        <div className="filter-tabs">
+          <button className={`filter-tab${activeTab === "going" ? " active" : ""}`} onClick={() => setActiveTab("going")}>
+            {t("profile.goingTab")} ({attendingEvents.length})
+          </button>
+          <button className={`filter-tab${activeTab === "interested" ? " active" : ""}`} onClick={() => setActiveTab("interested")}>
+            {t("profile.interestedTab")} ({interestedEvents.length})
+          </button>
+          <button className={`filter-tab${activeTab === "created" ? " active" : ""}`} onClick={() => setActiveTab("created")}>
+            {t("profile.myEventsTab")} ({createdEvents.length})
+          </button>
+        </div>
+      </div>
 
       <div className="profile-section">
-        <h3>{t("profile.myEvents")} ({createdEvents.length})</h3>
-        {createdEvents.length > 0 ? (
+        {tabEvents.length > 0 ? (
           <div className="profile-events-grid">
-            {createdEvents.map((e) => (
-              <EventCard key={e.id} event={{ ...e, going_count: 0, interested_count: 0, creator_name: user.name }}
+            {tabEvents.map((e) => (
+              <EventCard key={e.id} event={{ ...e, going_count: e.going_count || 0, interested_count: e.interested_count || 0, creator_name: activeTab === "created" ? user.name : (e.creator_name || "") }}
                 onClick={() => onNavigate("event-detail", { eventId: e.id })} />
             ))}
           </div>
         ) : (
           <div className="empty-state">
-            <p>{t("profile.noEvents")}</p>
-            <button className="btn btn-primary" onClick={() => onNavigate("create-event")}>{t("profile.createFirst")}</button>
+            <div className="empty-state-icon">
+              {activeTab === "going" ? "🎟️" : activeTab === "interested" ? "💫" : "🎪"}
+            </div>
+            <p>{activeTab === "going" ? t("profile.noAttending") : activeTab === "interested" ? t("profile.noInterested") : t("profile.noEvents")}</p>
+            <button className="btn btn-primary" onClick={() => onNavigate(activeTab === "created" ? "create-event" : activeTab === "interested" ? "discover" : "events")}>
+              {activeTab === "going" ? t("profile.findEvents") : activeTab === "interested" ? t("profile.discoverEvents") : t("profile.createFirst")}
+            </button>
           </div>
         )}
       </div>
 
-      <div className="profile-section">
-        <h3>{t("profile.attending")} ({attendingEvents.length})</h3>
-        {attendingEvents.length > 0 ? (
-          <div className="profile-events-grid">
-            {attendingEvents.map((e) => (
-              <EventCard key={e.id} event={{ ...e, going_count: 0, interested_count: 0, creator_name: "" }}
-                onClick={() => onNavigate("event-detail", { eventId: e.id })} />
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <p>{t("profile.noAttending")}</p>
-            <button className="btn btn-primary" onClick={() => onNavigate("events")}>{t("profile.findEvents")}</button>
-          </div>
-        )}
+      <div className="profile-prefs-collapsible">
+        <button className="profile-prefs-toggle" onClick={() => setPrefsOpen(!prefsOpen)}>
+          <span>{t("prefs.title")}</span>
+          <span className={`profile-prefs-toggle-icon${prefsOpen ? " open" : ""}`}>▼</span>
+        </button>
+        {prefsOpen && <NotificationPreferences user={user} />}
       </div>
     </div>
   );
