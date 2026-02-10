@@ -1963,11 +1963,13 @@ CREATE POLICY "Staff records readable by staff members"
 CREATE POLICY "Owner can add staff"
     ON venue_staff FOR INSERT WITH CHECK (
         is_venue_staff(venue_id, auth.uid(), ARRAY['owner'])
+        OR EXISTS (SELECT 1 FROM venues WHERE id = venue_id AND owner_id = auth.uid())
     );
 
 CREATE POLICY "Owner can remove staff"
     ON venue_staff FOR DELETE USING (
         is_venue_staff(venue_id, auth.uid(), ARRAY['owner'])
+        OR EXISTS (SELECT 1 FROM venues WHERE id = venue_id AND owner_id = auth.uid())
     );
 
 -- Timeslots
