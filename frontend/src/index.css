@@ -4171,6 +4171,31 @@ body {
   .slot-preview {
     grid-template-columns: 1fr 1fr;
   }
+
+  .create-type-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .create-type-tab {
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .date-strip {
+    padding: 4px 4px 12px;
+  }
+
+  .date-strip-item {
+    min-width: 56px;
+    padding: 8px 6px;
+  }
+
+  .date-strip-item .date-strip-day {
+    font-size: 18px;
+  }
 }
 
 /* ============================================================
@@ -4247,4 +4272,172 @@ body {
   padding: 10px 14px;
   font-size: 13px;
   color: #999;
+}
+
+/* ============================================================
+   DATE STRIP (calendar selector)
+   ============================================================ */
+
+.date-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0 12px;
+  margin-bottom: 20px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.date-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.date-strip-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 64px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border, #E5E7EB);
+  background: var(--card-bg, white);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.date-strip-item:hover {
+  border-color: #F26B3A;
+}
+
+.date-strip-item.selected {
+  background: #F26B3A;
+  border-color: #F26B3A;
+  color: white;
+}
+
+.date-strip-item .date-strip-weekday {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+}
+
+.date-strip-item.selected .date-strip-weekday {
+  opacity: 1;
+}
+
+.date-strip-item .date-strip-day {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.date-strip-item .date-strip-month {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.date-strip-item.selected .date-strip-month {
+  opacity: 1;
+}
+
+/* ============================================================
+   CREATE TYPE TABS (admin product tabs)
+   ============================================================ */
+
+.create-type-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-secondary, #F5F7FA);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 20px;
+}
+
+.create-type-tab {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.create-type-tab.active {
+  background: white;
+  color: #1B2141;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.create-type-tab:hover:not(.active) {
+  color: #1B2141;
+}
+
+/* ============================================================
+   TYPE BADGES
+   ============================================================ */
+
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 12px;
+}
+
+.type-badge.type-queue {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.type-badge.type-ticket {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.type-badge.type-table {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+/* ============================================================
+   VENUE PRODUCT SECTIONS
+   ============================================================ */
+
+.venue-product-section {
+  margin-bottom: 24px;
+}
+
+.venue-product-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1B2141;
+  margin-bottom: 12px;
+}
+
+.venue-product-title .venue-product-icon {
+  font-size: 1.2rem;
+}
+
+/* ============================================================
+   TIMESLOT CARD LABEL (table name)
+   ============================================================ */
+
+.timeslot-card-label {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #16a34a;
+  margin-bottom: 4px;
 }

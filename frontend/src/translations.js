@@ -400,6 +400,22 @@ export const translations = {
     "notif.booking_confirmed": "Booking bekreftet",
     "notif.booking_cancelled": "Booking kansellert",
 
+    // Timeslot types
+    "type.queue": "Ko-plass",
+    "type.ticket": "Inngangsbillett",
+    "type.table": "Bordreservasjon",
+    "type.queue.plural": "Ko-plasser",
+    "type.ticket.plural": "Inngangsbilletter",
+    "type.table.plural": "Bordreservasjoner",
+    "ticket.create": "Opprett billett",
+    "ticket.doorOpen": "D\u00f8rer \u00e5pner",
+    "ticket.doorClose": "D\u00f8rer stenger",
+    "table.create": "Opprett bordreservasjon",
+    "table.label": "Bordnavn",
+    "table.labelPlaceholder": "f.eks. Bord 1, VIP-losje",
+    "venue.availability": "Tilgjengelighet",
+    "venue.noTimeslotsDate": "Ingenting tilgjengelig denne datoen",
+
     // General
     "loading": "Laster...",
   },
@@ -799,6 +815,22 @@ export const translations = {
     // Booking notifications
     "notif.booking_confirmed": "Booking confirmed",
     "notif.booking_cancelled": "Booking cancelled",
+
+    // Timeslot types
+    "type.queue": "Queue slot",
+    "type.ticket": "Entry ticket",
+    "type.table": "Table reservation",
+    "type.queue.plural": "Queue slots",
+    "type.ticket.plural": "Entry tickets",
+    "type.table.plural": "Table reservations",
+    "ticket.create": "Create ticket",
+    "ticket.doorOpen": "Doors open",
+    "ticket.doorClose": "Doors close",
+    "table.create": "Create table reservation",
+    "table.label": "Table name",
+    "table.labelPlaceholder": "e.g. Table 1, VIP booth",
+    "venue.availability": "Availability",
+    "venue.noTimeslotsDate": "Nothing available on this date",
 
     // General
     "loading": "Loading...",

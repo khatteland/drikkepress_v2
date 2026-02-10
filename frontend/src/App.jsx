@@ -3137,10 +3137,16 @@ function VenueDetailPage({ venueId, user, onNavigate }) {
   const [venue, setVenue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [purchaseTimeslot, setPurchaseTimeslot] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
 
   const loadVenue = useCallback(() => {
     supabase.rpc("get_venue_detail", { p_venue_id: venueId }).then(({ data }) => {
       setVenue(data);
+      // Auto-select first available date
+      if (data && data.timeslots && data.timeslots.length > 0) {
+        const dates = [...new Set(data.timeslots.map((ts) => ts.date))].sort();
+        setSelectedDate((prev) => prev && dates.includes(prev) ? prev : dates[0]);
+      }
       setLoading(false);
     });
   }, [venueId]);
@@ -3151,6 +3157,56 @@ function VenueDetailPage({ venueId, user, onNavigate }) {
   if (!venue) return <div className="container"><p>{t("detail.notFound")}</p></div>;
 
   const formatPrice = (ore) => ore === 0 ? "Gratis" : `${(ore / 100).toFixed(0)} kr`;
+
+  // Get unique dates
+  const allDates = venue.timeslots ? [...new Set(venue.timeslots.map((ts) => ts.date))].sort() : [];
+
+  // Filter and group by type for selected date
+  const dateTimeslots = venue.timeslots ? venue.timeslots.filter((ts) => ts.date === selectedDate) : [];
+  const ticketSlots = dateTimeslots.filter((ts) => ts.type === "ticket");
+  const tableSlots = dateTimeslots.filter((ts) => ts.type === "table");
+  const queueSlots = dateTimeslots.filter((ts) => ts.type === "queue" || !ts.type);
+
+  const renderTimeslotCard = (ts) => {
+    const spotsLeft = ts.capacity - (ts.booked_count || 0);
+    const isSoldOut = spotsLeft <= 0;
+    const hasBooking = ts.my_booking && ts.my_booking.id;
+    return (
+      <div key={ts.id} className={`timeslot-card ${isSoldOut ? "sold-out" : ""}`}>
+        {ts.type === "table" && ts.label && <div className="timeslot-card-label">{ts.label}</div>}
+        <div className="timeslot-card-time">{ts.start_time?.slice(0, 5)} – {ts.end_time?.slice(0, 5)}</div>
+        {ts.description && <div className="timeslot-card-desc">{ts.description}</div>}
+        <div className="timeslot-card-footer">
+          <span className="timeslot-card-price">{formatPrice(ts.price)}</span>
+          <span className={`timeslot-card-spots ${isSoldOut ? "sold-out" : ""}`}>
+            {isSoldOut ? t("timeslot.soldOut") : `${spotsLeft} ${t("timeslot.spotsLeft")}`}
+          </span>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          {hasBooking ? (
+            <button className="btn btn-secondary btn-sm" disabled>{t("booking.alreadyBooked")}</button>
+          ) : isSoldOut ? null : (
+            <button className="btn btn-primary btn-sm" onClick={() => {
+              if (!user) return onNavigate("login");
+              setPurchaseTimeslot(ts);
+            }}>
+              {t("booking.buyFor")} {formatPrice(ts.price)}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const formatDateStrip = (dateStr) => {
+    const d = new Date(dateStr + "T00:00:00");
+    const locale = lang === "no" ? "nb-NO" : "en-US";
+    return {
+      weekday: d.toLocaleDateString(locale, { weekday: "short" }).slice(0, 3),
+      day: d.getDate(),
+      month: d.toLocaleDateString(locale, { month: "short" }),
+    };
+  };
 
   return (
     <div className="venue-detail-page">
@@ -3189,40 +3245,58 @@ function VenueDetailPage({ venueId, user, onNavigate }) {
         </div>
       )}
 
-      <h2>{t("venue.upcomingTimeslots")}</h2>
-      {venue.timeslots && venue.timeslots.length > 0 ? (
-        <div className="timeslot-list">
-          {venue.timeslots.map((ts) => {
-            const spotsLeft = ts.capacity - (ts.booked_count || 0);
-            const isSoldOut = spotsLeft <= 0;
-            const hasBooking = ts.my_booking && ts.my_booking.id;
-            return (
-              <div key={ts.id} className={`timeslot-card ${isSoldOut ? "sold-out" : ""}`}>
-                <div className="timeslot-card-date">{formatDate(ts.date, lang)}</div>
-                <div className="timeslot-card-time">{ts.start_time?.slice(0, 5)} – {ts.end_time?.slice(0, 5)}</div>
-                {ts.description && <div className="timeslot-card-desc">{ts.description}</div>}
-                <div className="timeslot-card-footer">
-                  <span className="timeslot-card-price">{formatPrice(ts.price)}</span>
-                  <span className={`timeslot-card-spots ${isSoldOut ? "sold-out" : ""}`}>
-                    {isSoldOut ? t("timeslot.soldOut") : `${spotsLeft} ${t("timeslot.spotsLeft")}`}
-                  </span>
+      <h2>{t("venue.availability")}</h2>
+
+      {allDates.length > 0 ? (
+        <>
+          <div className="date-strip">
+            {allDates.map((dateStr) => {
+              const d = formatDateStrip(dateStr);
+              return (
+                <button
+                  key={dateStr}
+                  className={`date-strip-item ${selectedDate === dateStr ? "selected" : ""}`}
+                  onClick={() => setSelectedDate(dateStr)}
+                >
+                  <span className="date-strip-weekday">{d.weekday}</span>
+                  <span className="date-strip-day">{d.day}</span>
+                  <span className="date-strip-month">{d.month}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {dateTimeslots.length > 0 ? (
+            <>
+              {ticketSlots.length > 0 && (
+                <div className="venue-product-section">
+                  <div className="venue-product-title">
+                    <span className="venue-product-icon">🎫</span> {t("type.ticket.plural")}
+                  </div>
+                  <div className="timeslot-list">{ticketSlots.map(renderTimeslotCard)}</div>
                 </div>
-                <div style={{ marginTop: 12 }}>
-                  {hasBooking ? (
-                    <button className="btn btn-secondary btn-sm" disabled>{t("booking.alreadyBooked")}</button>
-                  ) : isSoldOut ? null : (
-                    <button className="btn btn-primary btn-sm" onClick={() => {
-                      if (!user) return onNavigate("login");
-                      setPurchaseTimeslot(ts);
-                    }}>
-                      {t("booking.buyFor")} {formatPrice(ts.price)}
-                    </button>
-                  )}
+              )}
+              {tableSlots.length > 0 && (
+                <div className="venue-product-section">
+                  <div className="venue-product-title">
+                    <span className="venue-product-icon">🪑</span> {t("type.table.plural")}
+                  </div>
+                  <div className="timeslot-list">{tableSlots.map(renderTimeslotCard)}</div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              )}
+              {queueSlots.length > 0 && (
+                <div className="venue-product-section">
+                  <div className="venue-product-title">
+                    <span className="venue-product-icon">⏰</span> {t("type.queue.plural")}
+                  </div>
+                  <div className="timeslot-list">{queueSlots.map(renderTimeslotCard)}</div>
+                </div>
+              )}
+            </>
+          ) : (
+            <p style={{ color: "var(--text-secondary)" }}>{t("venue.noTimeslotsDate")}</p>
+          )}
+        </>
       ) : (
         <p style={{ color: "var(--text-secondary)" }}>{t("venue.noTimeslots")}</p>
       )}
@@ -3294,6 +3368,8 @@ function PurchaseModal({ timeslot, venue, user, onClose, onSuccess }) {
             <h2>{t("booking.confirm")}</h2>
             <div className="purchase-modal-summary">
               <p><strong>{venue.name}</strong></p>
+              {timeslot.type && <p><span className={`type-badge type-${timeslot.type}`}>{t(`type.${timeslot.type}`)}</span></p>}
+              {timeslot.type === "table" && timeslot.label && <p><strong>{timeslot.label}</strong></p>}
               <p>{formatDate(timeslot.date, lang)}</p>
               <p>{timeslot.start_time?.slice(0, 5)} – {timeslot.end_time?.slice(0, 5)}</p>
               {timeslot.description && <p>{timeslot.description}</p>}
@@ -3423,9 +3499,16 @@ function VenueManagePage({ venueId, user, onNavigate }) {
   const { t, lang } = useI18n();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeCreateTab, setActiveCreateTab] = useState("queue");
   const [tsForm, setTsForm] = useState({
     date: "", from_time: "", to_time: "",
     slot_duration: "15", price: "", capacity: "10", description: "",
+  });
+  const [ticketForm, setTicketForm] = useState({
+    date: "", start_time: "", end_time: "", price: "", capacity: "100", description: "",
+  });
+  const [tableForm, setTableForm] = useState({
+    date: "", start_time: "", end_time: "", price: "", capacity: "1", label: "", description: "",
   });
   const [tsSubmitting, setTsSubmitting] = useState(false);
   const [staffEmail, setStaffEmail] = useState("");
@@ -3450,7 +3533,7 @@ function VenueManagePage({ venueId, user, onNavigate }) {
 
   const previewSlots = generateSlots(tsForm.from_time, tsForm.to_time, parseInt(tsForm.slot_duration) || 15);
 
-  const handleCreateTimeslot = async (e) => {
+  const handleCreateQueueSlots = async (e) => {
     e.preventDefault();
     if (!tsForm.date || !tsForm.from_time || !tsForm.to_time || previewSlots.length === 0) return;
     setTsSubmitting(true);
@@ -3463,9 +3546,51 @@ function VenueManagePage({ venueId, user, onNavigate }) {
       price: priceOre,
       capacity: parseInt(tsForm.capacity) || 10,
       description: tsForm.description,
+      type: "queue",
     }));
     await supabase.from("timeslots").insert(rows);
     setTsForm({ date: "", from_time: "", to_time: "", slot_duration: "15", price: "", capacity: "10", description: "" });
+    setTsSubmitting(false);
+    loadDashboard();
+  };
+
+  const handleCreateTicket = async (e) => {
+    e.preventDefault();
+    if (!ticketForm.date || !ticketForm.start_time || !ticketForm.end_time) return;
+    setTsSubmitting(true);
+    const priceOre = Math.round((parseFloat(ticketForm.price) || 0) * 100);
+    await supabase.from("timeslots").insert({
+      venue_id: venueId,
+      date: ticketForm.date,
+      start_time: ticketForm.start_time,
+      end_time: ticketForm.end_time,
+      price: priceOre,
+      capacity: parseInt(ticketForm.capacity) || 100,
+      description: ticketForm.description,
+      type: "ticket",
+    });
+    setTicketForm({ date: "", start_time: "", end_time: "", price: "", capacity: "100", description: "" });
+    setTsSubmitting(false);
+    loadDashboard();
+  };
+
+  const handleCreateTable = async (e) => {
+    e.preventDefault();
+    if (!tableForm.date || !tableForm.start_time || !tableForm.end_time || !tableForm.label) return;
+    setTsSubmitting(true);
+    const priceOre = Math.round((parseFloat(tableForm.price) || 0) * 100);
+    await supabase.from("timeslots").insert({
+      venue_id: venueId,
+      date: tableForm.date,
+      start_time: tableForm.start_time,
+      end_time: tableForm.end_time,
+      price: priceOre,
+      capacity: parseInt(tableForm.capacity) || 1,
+      description: tableForm.description,
+      type: "table",
+      label: tableForm.label,
+    });
+    setTableForm({ date: "", start_time: "", end_time: "", price: "", capacity: "1", label: "", description: "" });
     setTsSubmitting(false);
     loadDashboard();
   };
@@ -3513,69 +3638,160 @@ function VenueManagePage({ venueId, user, onNavigate }) {
 
       <div className="venue-dashboard-section">
         <h2>{t("timeslot.create")}</h2>
-        <form className="timeslot-form" onSubmit={handleCreateTimeslot}>
-          <div className="form-row">
-            <div className="form-group">
-              <label>{t("timeslot.date")} *</label>
-              <input type="date" value={tsForm.date} onChange={(e) => setTsForm({ ...tsForm, date: e.target.value })} />
+
+        <div className="create-type-tabs">
+          <button className={`create-type-tab ${activeCreateTab === "queue" ? "active" : ""}`} onClick={() => setActiveCreateTab("queue")}>
+            ⏰ {t("type.queue")}
+          </button>
+          <button className={`create-type-tab ${activeCreateTab === "ticket" ? "active" : ""}`} onClick={() => setActiveCreateTab("ticket")}>
+            🎫 {t("type.ticket")}
+          </button>
+          <button className={`create-type-tab ${activeCreateTab === "table" ? "active" : ""}`} onClick={() => setActiveCreateTab("table")}>
+            🪑 {t("type.table")}
+          </button>
+        </div>
+
+        {activeCreateTab === "queue" && (
+          <form className="timeslot-form" onSubmit={handleCreateQueueSlots}>
+            <div className="form-row">
+              <div className="form-group">
+                <label>{t("timeslot.date")} *</label>
+                <input type="date" value={tsForm.date} onChange={(e) => setTsForm({ ...tsForm, date: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>{t("timeslot.capacity")}</label>
+                <input type="number" value={tsForm.capacity} onChange={(e) => setTsForm({ ...tsForm, capacity: e.target.value })} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>{t("timeslot.fromTime")} *</label>
+                <input type="time" value={tsForm.from_time} onChange={(e) => setTsForm({ ...tsForm, from_time: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>{t("timeslot.toTime")} *</label>
+                <input type="time" value={tsForm.to_time} onChange={(e) => setTsForm({ ...tsForm, to_time: e.target.value })} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>{t("timeslot.slotDuration")}</label>
+                <select value={tsForm.slot_duration} onChange={(e) => setTsForm({ ...tsForm, slot_duration: e.target.value })}>
+                  <option value="15">15 {t("timeslot.minutes")}</option>
+                  <option value="30">30 {t("timeslot.minutes")}</option>
+                  <option value="45">45 {t("timeslot.minutes")}</option>
+                  <option value="60">60 {t("timeslot.minutes")}</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>{t("timeslot.priceKr")}</label>
+                <input type="number" value={tsForm.price} onChange={(e) => setTsForm({ ...tsForm, price: e.target.value })} placeholder="0" step="1" min="0" />
+              </div>
             </div>
             <div className="form-group">
-              <label>{t("timeslot.capacity")}</label>
-              <input type="number" value={tsForm.capacity} onChange={(e) => setTsForm({ ...tsForm, capacity: e.target.value })} />
+              <label>{t("timeslot.description")}</label>
+              <input type="text" value={tsForm.description} onChange={(e) => setTsForm({ ...tsForm, description: e.target.value })} />
             </div>
-          </div>
-          <div className="form-row">
+
             <div className="form-group">
-              <label>{t("timeslot.fromTime")} *</label>
-              <input type="time" value={tsForm.from_time} onChange={(e) => setTsForm({ ...tsForm, from_time: e.target.value })} />
+              <label>{t("timeslot.preview")}</label>
+              {previewSlots.length > 0 ? (
+                <>
+                  <div className="slot-preview">
+                    {previewSlots.map((slot, i) => (
+                      <div key={i} className="slot-preview-item">{slot.start}–{slot.end}</div>
+                    ))}
+                  </div>
+                  <div className="slot-preview-count">
+                    {t("timeslot.generateCount").replace("{n}", previewSlots.length)}
+                  </div>
+                </>
+              ) : (
+                <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>{t("timeslot.noSlots")}</p>
+              )}
             </div>
-            <div className="form-group">
-              <label>{t("timeslot.toTime")} *</label>
-              <input type="time" value={tsForm.to_time} onChange={(e) => setTsForm({ ...tsForm, to_time: e.target.value })} />
+
+            <button className="btn btn-primary" type="submit" disabled={tsSubmitting || previewSlots.length === 0}>
+              {tsSubmitting ? t("loading") : t("timeslot.generateCount").replace("{n}", previewSlots.length)}
+            </button>
+          </form>
+        )}
+
+        {activeCreateTab === "ticket" && (
+          <form className="timeslot-form" onSubmit={handleCreateTicket}>
+            <div className="form-row">
+              <div className="form-group">
+                <label>{t("timeslot.date")} *</label>
+                <input type="date" value={ticketForm.date} onChange={(e) => setTicketForm({ ...ticketForm, date: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>{t("timeslot.capacity")}</label>
+                <input type="number" value={ticketForm.capacity} onChange={(e) => setTicketForm({ ...ticketForm, capacity: e.target.value })} />
+              </div>
             </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>{t("timeslot.slotDuration")}</label>
-              <select value={tsForm.slot_duration} onChange={(e) => setTsForm({ ...tsForm, slot_duration: e.target.value })}>
-                <option value="15">15 {t("timeslot.minutes")}</option>
-                <option value="30">30 {t("timeslot.minutes")}</option>
-                <option value="45">45 {t("timeslot.minutes")}</option>
-                <option value="60">60 {t("timeslot.minutes")}</option>
-              </select>
+            <div className="form-row">
+              <div className="form-group">
+                <label>{t("ticket.doorOpen")} *</label>
+                <input type="time" value={ticketForm.start_time} onChange={(e) => setTicketForm({ ...ticketForm, start_time: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>{t("ticket.doorClose")} *</label>
+                <input type="time" value={ticketForm.end_time} onChange={(e) => setTicketForm({ ...ticketForm, end_time: e.target.value })} />
+              </div>
             </div>
             <div className="form-group">
               <label>{t("timeslot.priceKr")}</label>
-              <input type="number" value={tsForm.price} onChange={(e) => setTsForm({ ...tsForm, price: e.target.value })} placeholder="0" step="1" min="0" />
+              <input type="number" value={ticketForm.price} onChange={(e) => setTicketForm({ ...ticketForm, price: e.target.value })} placeholder="0" step="1" min="0" />
             </div>
-          </div>
-          <div className="form-group">
-            <label>{t("timeslot.description")}</label>
-            <input type="text" value={tsForm.description} onChange={(e) => setTsForm({ ...tsForm, description: e.target.value })} />
-          </div>
+            <div className="form-group">
+              <label>{t("timeslot.description")}</label>
+              <input type="text" value={ticketForm.description} onChange={(e) => setTicketForm({ ...ticketForm, description: e.target.value })} />
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={tsSubmitting || !ticketForm.date || !ticketForm.start_time || !ticketForm.end_time}>
+              {tsSubmitting ? t("loading") : t("ticket.create")}
+            </button>
+          </form>
+        )}
 
-          <div className="form-group">
-            <label>{t("timeslot.preview")}</label>
-            {previewSlots.length > 0 ? (
-              <>
-                <div className="slot-preview">
-                  {previewSlots.map((slot, i) => (
-                    <div key={i} className="slot-preview-item">{slot.start}–{slot.end}</div>
-                  ))}
-                </div>
-                <div className="slot-preview-count">
-                  {t("timeslot.generateCount").replace("{n}", previewSlots.length)}
-                </div>
-              </>
-            ) : (
-              <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>{t("timeslot.noSlots")}</p>
-            )}
-          </div>
-
-          <button className="btn btn-primary" type="submit" disabled={tsSubmitting || previewSlots.length === 0}>
-            {tsSubmitting ? t("loading") : t("timeslot.generateCount").replace("{n}", previewSlots.length)}
-          </button>
-        </form>
+        {activeCreateTab === "table" && (
+          <form className="timeslot-form" onSubmit={handleCreateTable}>
+            <div className="form-group">
+              <label>{t("table.label")} *</label>
+              <input type="text" value={tableForm.label} onChange={(e) => setTableForm({ ...tableForm, label: e.target.value })} placeholder={t("table.labelPlaceholder")} />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>{t("timeslot.date")} *</label>
+                <input type="date" value={tableForm.date} onChange={(e) => setTableForm({ ...tableForm, date: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>{t("timeslot.capacity")}</label>
+                <input type="number" value={tableForm.capacity} onChange={(e) => setTableForm({ ...tableForm, capacity: e.target.value })} />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>{t("timeslot.fromTime")} *</label>
+                <input type="time" value={tableForm.start_time} onChange={(e) => setTableForm({ ...tableForm, start_time: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>{t("timeslot.toTime")} *</label>
+                <input type="time" value={tableForm.end_time} onChange={(e) => setTableForm({ ...tableForm, end_time: e.target.value })} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label>{t("timeslot.priceKr")}</label>
+              <input type="number" value={tableForm.price} onChange={(e) => setTableForm({ ...tableForm, price: e.target.value })} placeholder="0" step="1" min="0" />
+            </div>
+            <div className="form-group">
+              <label>{t("timeslot.description")}</label>
+              <input type="text" value={tableForm.description} onChange={(e) => setTableForm({ ...tableForm, description: e.target.value })} />
+            </div>
+            <button className="btn btn-primary" type="submit" disabled={tsSubmitting || !tableForm.date || !tableForm.start_time || !tableForm.end_time || !tableForm.label}>
+              {tsSubmitting ? t("loading") : t("table.create")}
+            </button>
+          </form>
+        )}
       </div>
 
       <div className="venue-dashboard-section">
@@ -3584,7 +3800,10 @@ function VenueManagePage({ venueId, user, onNavigate }) {
           dashboard.timeslots.map((ts) => (
             <div key={ts.id} className="timeslot-dashboard-item">
               <div className="timeslot-dashboard-header">
-                <h3>{formatDate(ts.date, lang)} {ts.start_time?.slice(0, 5)}–{ts.end_time?.slice(0, 5)}</h3>
+                <h3>
+                  <span className={`type-badge type-${ts.type || "queue"}`}>{t(`type.${ts.type || "queue"}`)}</span>
+                  {" "}{ts.label ? `${ts.label} — ` : ""}{formatDate(ts.date, lang)} {ts.start_time?.slice(0, 5)}–{ts.end_time?.slice(0, 5)}
+                </h3>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span>{formatPrice(ts.price)}</span>
                   <span>{ts.bookings?.length || 0}/{ts.capacity}</span>
@@ -3865,6 +4084,10 @@ function MyTicketsPage({ user, onNavigate }) {
               <span className={`ticket-card-status ${b.status}`}>
                 {b.status === "confirmed" ? t("booking.notCheckedIn") : b.status === "checked_in" ? t("booking.checkedIn") : t("booking.cancelled")}
               </span>
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
+              {b.timeslot.type && <span className={`type-badge type-${b.timeslot.type}`}>{t(`type.${b.timeslot.type}`)}</span>}
+              {b.timeslot.type === "table" && b.timeslot.label && <span className="timeslot-card-label" style={{ marginBottom: 0 }}>{b.timeslot.label}</span>}
             </div>
             <div className="ticket-card-meta">
               {formatDate(b.timeslot.date, lang)} &middot; {b.timeslot.start_time?.slice(0, 5)}–{b.timeslot.end_time?.slice(0, 5)}

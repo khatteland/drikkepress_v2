@@ -262,6 +262,8 @@ CREATE TABLE timeslots (
     price       INTEGER NOT NULL DEFAULT 0,
     capacity    INTEGER NOT NULL DEFAULT 10,
     description TEXT DEFAULT '',
+    type        TEXT NOT NULL DEFAULT 'queue' CHECK (type IN ('queue', 'ticket', 'table')),
+    label       TEXT DEFAULT '',
     active      BOOLEAN NOT NULL DEFAULT TRUE,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
@@ -269,6 +271,7 @@ CREATE TABLE timeslots (
 CREATE INDEX idx_timeslots_venue ON timeslots(venue_id);
 CREATE INDEX idx_timeslots_event ON timeslots(event_id);
 CREATE INDEX idx_timeslots_date ON timeslots(date);
+CREATE INDEX idx_timeslots_type ON timeslots(type);
 
 -- ============================================================
 -- BOOKINGS
@@ -1479,7 +1482,8 @@ BEGIN
 
     SELECT b2.id AS booking_id, b2.status AS booking_status, b2.checked_in_at,
            b2.user_id, p.name AS user_name, p.avatar_url AS user_avatar_url,
-           ts.date, ts.start_time, ts.end_time, ts.description AS ts_description, ts.venue_id
+           ts.date, ts.start_time, ts.end_time, ts.description AS ts_description,
+           ts.venue_id, ts.type AS ts_type, ts.label AS ts_label
     INTO b
     FROM bookings b2
     JOIN profiles p ON p.id = b2.user_id
@@ -1500,7 +1504,9 @@ BEGIN
         'date', b.date,
         'start_time', b.start_time,
         'end_time', b.end_time,
-        'timeslot_description', b.ts_description
+        'timeslot_description', b.ts_description,
+        'type', b.ts_type,
+        'label', b.ts_label
     );
 END;
 $$;
@@ -1621,6 +1627,7 @@ BEGIN
         jsonb_build_object(
             'id', ts.id, 'date', ts.date, 'start_time', ts.start_time, 'end_time', ts.end_time,
             'price', ts.price, 'capacity', ts.capacity, 'description', ts.description, 'event_id', ts.event_id,
+            'type', ts.type, 'label', ts.label,
             'booked_count', (SELECT COUNT(*) FROM bookings b WHERE b.timeslot_id = ts.id AND b.status IN ('confirmed', 'checked_in')),
             'my_booking', (SELECT jsonb_build_object('id', b.id, 'status', b.status, 'qr_token', b.qr_token)
                           FROM bookings b WHERE b.timeslot_id = ts.id AND b.user_id = current_uid AND b.status != 'cancelled' LIMIT 1)
@@ -1686,6 +1693,7 @@ BEGIN
             'id', ts.id, 'date', ts.date, 'start_time', ts.start_time, 'end_time', ts.end_time,
             'price', ts.price, 'capacity', ts.capacity, 'description', ts.description,
             'active', ts.active, 'event_id', ts.event_id,
+            'type', ts.type, 'label', ts.label,
             'bookings', COALESCE((
                 SELECT jsonb_agg(jsonb_build_object(
                     'id', b.id, 'user_id', b.user_id, 'user_name', p.name, 'user_avatar_url', p.avatar_url,
@@ -1732,7 +1740,8 @@ BEGIN
             'booking_id', b.id, 'status', b.status, 'qr_token', b.qr_token,
             'checked_in_at', b.checked_in_at, 'created_at', b.created_at,
             'timeslot', jsonb_build_object('id', ts.id, 'date', ts.date, 'start_time', ts.start_time,
-                'end_time', ts.end_time, 'price', ts.price, 'description', ts.description),
+                'end_time', ts.end_time, 'price', ts.price, 'description', ts.description,
+                'type', ts.type, 'label', ts.label),
             'venue', jsonb_build_object('id', v.id, 'name', v.name, 'address', v.address, 'image_url', v.image_url)
         ) ORDER BY ts.date DESC, ts.start_time DESC
     ), '[]'::jsonb) INTO result
