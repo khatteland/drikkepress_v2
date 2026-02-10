@@ -3196,6 +3196,693 @@ body {
 }
 
 /* ============================================================
+   VENUES
+   ============================================================ */
+
+.venues-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.venues-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.venues-page-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.venue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.venue-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  border: 1px solid var(--border);
+}
+
+.venue-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.venue-card-image {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  background: var(--bg-secondary);
+}
+
+.venue-card-image-placeholder {
+  width: 100%;
+  height: 180px;
+  background: linear-gradient(135deg, var(--bg-secondary), var(--border));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  color: var(--text-secondary);
+}
+
+.venue-card-body {
+  padding: 16px;
+}
+
+.venue-card-body h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.venue-card-body p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.venue-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: var(--primary);
+  color: white;
+}
+
+.venue-badge.verified {
+  background: #16a34a;
+}
+
+/* Venue Detail */
+.venue-detail-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.venue-detail-header {
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.venue-detail-header img {
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+  border-radius: 16px;
+}
+
+.venue-detail-header-placeholder {
+  width: 100%;
+  height: 280px;
+  background: linear-gradient(135deg, var(--bg-secondary), var(--border));
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 4rem;
+  color: var(--text-secondary);
+}
+
+.venue-detail-info {
+  margin-bottom: 32px;
+}
+
+.venue-detail-info h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.venue-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+}
+
+.venue-detail-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.venue-detail-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* Timeslot list */
+.timeslot-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.timeslot-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: border-color 0.15s;
+}
+
+.timeslot-card:hover {
+  border-color: var(--primary);
+}
+
+.timeslot-card.sold-out {
+  opacity: 0.6;
+}
+
+.timeslot-card-time {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.timeslot-card-date {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.timeslot-card-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.timeslot-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.timeslot-card-price {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--primary);
+}
+
+.timeslot-card-spots {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.timeslot-card-spots.sold-out {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* Purchase modal */
+.purchase-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.purchase-modal {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 420px;
+  width: 100%;
+  position: relative;
+}
+
+.purchase-modal h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.purchase-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.purchase-modal-summary {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.purchase-modal-summary p {
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+}
+
+.purchase-modal-summary .price-line {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-top: 12px;
+}
+
+.mock-payment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.purchase-modal-success {
+  text-align: center;
+  padding: 16px 0;
+}
+
+.purchase-modal-success h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #16a34a;
+  margin-bottom: 16px;
+}
+
+/* Booking ticket / QR */
+.booking-ticket {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.booking-ticket-details {
+  margin-bottom: 16px;
+}
+
+.booking-ticket-details p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.booking-ticket-qr {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  background: white;
+  border-radius: 12px;
+  margin-top: 12px;
+}
+
+/* My Tickets page */
+.my-tickets-page {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.my-tickets-page h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.ticket-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.ticket-card:hover {
+  border-color: var(--primary);
+}
+
+.ticket-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.ticket-card-venue {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.ticket-card-status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 12px;
+}
+
+.ticket-card-status.confirmed {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.ticket-card-status.checked_in {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.ticket-card-status.cancelled {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.ticket-card-meta {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.ticket-card-price {
+  font-weight: 600;
+  color: var(--primary);
+  margin-top: 4px;
+}
+
+/* Venue Dashboard */
+.venue-dashboard {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.venue-dashboard h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.venue-stats-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.venue-stat {
+  flex: 1;
+  min-width: 140px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.venue-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.venue-stat-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.venue-dashboard-section {
+  margin-bottom: 32px;
+}
+
+.venue-dashboard-section h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Timeslot editor form */
+.timeslot-form {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.timeslot-form .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Staff list */
+.staff-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.staff-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.staff-item img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.staff-item-info {
+  flex: 1;
+}
+
+.staff-item-info strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.staff-item-info span {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.staff-role-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.staff-role-badge.owner {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.staff-role-badge.manager {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.staff-role-badge.bouncer {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+/* Bookings table */
+.bookings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.bookings-table th,
+.bookings-table td {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.bookings-table th {
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+/* Scanner */
+.venue-scanner {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.venue-scanner h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.scan-result-card {
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-top: 20px;
+  text-align: left;
+}
+
+.scan-result-card.valid {
+  border-color: #16a34a;
+}
+
+.scan-result-card.invalid {
+  border-color: #ef4444;
+}
+
+.scan-result-card h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.scan-result-card p {
+  font-size: 0.95rem;
+  margin-bottom: 6px;
+}
+
+.scan-result-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 16px;
+}
+
+.scan-result-status.success {
+  color: #16a34a;
+}
+
+.scan-result-status.error {
+  color: #ef4444;
+}
+
+.scan-result-status.warning {
+  color: #f59e0b;
+}
+
+/* Venue register form */
+.venue-register-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.venue-register-page h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 24px;
+}
+
+/* Venue event link in EventDetail */
+.venue-link-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.venue-link-card:hover {
+  background: var(--border);
+}
+
+.venue-link-card img {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.venue-link-card-info h4 {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.venue-link-card-info p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Timeslot dashboard item */
+.timeslot-dashboard-item {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.timeslot-dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.timeslot-dashboard-header h3 {
+  font-weight: 600;
+}
+
+/* ============================================================
    RESPONSIVE
    ============================================================ */
 
@@ -3438,5 +4125,46 @@ body {
 
   .btn-sm {
     min-height: 36px;
+  }
+
+  /* Venue responsive */
+  .venue-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .timeslot-list {
+    grid-template-columns: 1fr;
+  }
+
+  .timeslot-form .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .venue-stats-row {
+    flex-direction: column;
+  }
+
+  .purchase-modal {
+    max-width: 100%;
+    margin: 16px;
+    padding: 24px 16px;
+  }
+
+  .venue-detail-header img,
+  .venue-detail-header-placeholder {
+    height: 200px;
+  }
+
+  .venue-detail-actions {
+    flex-direction: column;
+  }
+
+  .bookings-table {
+    font-size: 0.8rem;
+  }
+
+  .bookings-table th,
+  .bookings-table td {
+    padding: 6px 8px;
   }
 }

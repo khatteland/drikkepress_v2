@@ -45,6 +45,42 @@ CREATE TRIGGER on_auth_user_created
     EXECUTE FUNCTION handle_new_user();
 
 -- ============================================================
+-- VENUES
+-- ============================================================
+CREATE TABLE venues (
+    id              SERIAL PRIMARY KEY,
+    name            TEXT NOT NULL,
+    description     TEXT DEFAULT '',
+    address         TEXT NOT NULL,
+    latitude        DOUBLE PRECISION,
+    longitude       DOUBLE PRECISION,
+    image_url       TEXT,
+    opening_hours   TEXT DEFAULT '',
+    contact_email   TEXT,
+    contact_phone   TEXT,
+    owner_id        UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    verified        BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_venues_owner ON venues(owner_id);
+
+-- ============================================================
+-- VENUE STAFF
+-- ============================================================
+CREATE TABLE venue_staff (
+    id          SERIAL PRIMARY KEY,
+    venue_id    INTEGER NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
+    user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    role        TEXT NOT NULL CHECK (role IN ('owner', 'manager', 'bouncer')),
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(venue_id, user_id)
+);
+
+CREATE INDEX idx_venue_staff_venue ON venue_staff(venue_id);
+CREATE INDEX idx_venue_staff_user ON venue_staff(user_id);
+
+-- ============================================================
 -- EVENTS
 -- ============================================================
 CREATE TABLE events (
@@ -63,6 +99,7 @@ CREATE TABLE events (
     qr_enabled      BOOLEAN NOT NULL DEFAULT FALSE,
     latitude        DOUBLE PRECISION,
     longitude       DOUBLE PRECISION,
+    venue_id        INTEGER REFERENCES venues(id) ON DELETE SET NULL,
     creator_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     updated_at      TIMESTAMPTZ DEFAULT NOW()
@@ -156,8 +193,9 @@ CREATE INDEX idx_ar_user ON access_requests(user_id);
 CREATE TABLE notifications (
     id          SERIAL PRIMARY KEY,
     user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    type        TEXT NOT NULL CHECK (type IN ('rsvp','comment','access_request','invitation','reminder','waitlist_promoted','kicked','follow_request','follow_accepted')),
+    type        TEXT NOT NULL CHECK (type IN ('rsvp','comment','access_request','invitation','reminder','waitlist_promoted','kicked','follow_request','follow_accepted','booking_confirmed','booking_cancelled')),
     event_id    INTEGER REFERENCES events(id) ON DELETE CASCADE,
+    venue_id    INTEGER REFERENCES venues(id),
     actor_id    UUID REFERENCES profiles(id) ON DELETE SET NULL,
     message     TEXT,
     is_read     BOOLEAN NOT NULL DEFAULT FALSE,
@@ -212,6 +250,62 @@ CREATE INDEX idx_event_swipes_user ON event_swipes(user_id);
 CREATE INDEX idx_event_swipes_event ON event_swipes(event_id);
 
 -- ============================================================
+-- TIMESLOTS
+-- ============================================================
+CREATE TABLE timeslots (
+    id          SERIAL PRIMARY KEY,
+    venue_id    INTEGER NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
+    event_id    INTEGER REFERENCES events(id) ON DELETE SET NULL,
+    date        DATE NOT NULL,
+    start_time  TIME NOT NULL,
+    end_time    TIME NOT NULL,
+    price       INTEGER NOT NULL DEFAULT 0,
+    capacity    INTEGER NOT NULL DEFAULT 10,
+    description TEXT DEFAULT '',
+    active      BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_timeslots_venue ON timeslots(venue_id);
+CREATE INDEX idx_timeslots_event ON timeslots(event_id);
+CREATE INDEX idx_timeslots_date ON timeslots(date);
+
+-- ============================================================
+-- BOOKINGS
+-- ============================================================
+CREATE TABLE bookings (
+    id          SERIAL PRIMARY KEY,
+    timeslot_id INTEGER NOT NULL REFERENCES timeslots(id) ON DELETE CASCADE,
+    user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    qr_token    UUID NOT NULL DEFAULT gen_random_uuid(),
+    status      TEXT NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'checked_in', 'cancelled', 'expired')),
+    checked_in_at TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(timeslot_id, user_id)
+);
+
+CREATE INDEX idx_bookings_timeslot ON bookings(timeslot_id);
+CREATE INDEX idx_bookings_user ON bookings(user_id);
+CREATE UNIQUE INDEX idx_bookings_qr_token ON bookings(qr_token);
+
+-- ============================================================
+-- TRANSACTIONS
+-- ============================================================
+CREATE TABLE transactions (
+    id              SERIAL PRIMARY KEY,
+    booking_id      INTEGER NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+    user_id         UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    amount          INTEGER NOT NULL,
+    currency        TEXT NOT NULL DEFAULT 'NOK',
+    status          TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('completed', 'refunded')),
+    payment_method  TEXT NOT NULL DEFAULT 'mock',
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_transactions_booking ON transactions(booking_id);
+CREATE INDEX idx_transactions_user ON transactions(user_id);
+
+-- ============================================================
 -- PROFILE PHOTOS
 -- ============================================================
 CREATE TABLE profile_photos (
@@ -257,6 +351,24 @@ CREATE TABLE follows (
 CREATE INDEX idx_follows_follower ON follows(follower_id);
 CREATE INDEX idx_follows_following ON follows(following_id);
 CREATE INDEX idx_follows_pending ON follows(following_id) WHERE status = 'pending';
+
+-- ============================================================
+-- HELPER: is_venue_staff
+-- ============================================================
+CREATE OR REPLACE FUNCTION is_venue_staff(p_venue_id INT, p_user_id UUID, p_roles TEXT[] DEFAULT ARRAY['owner','manager','bouncer'])
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF p_user_id IS NULL THEN RETURN FALSE; END IF;
+    RETURN EXISTS (
+        SELECT 1 FROM venue_staff
+        WHERE venue_id = p_venue_id AND user_id = p_user_id AND role = ANY(p_roles)
+    );
+END;
+$$;
 
 -- ============================================================
 -- HELPER: is_event_admin (creator OR co-admin)
@@ -417,6 +529,7 @@ BEGIN
         'max_attendees', ev.max_attendees,
         'has_access', true,
         'qr_enabled', ev.qr_enabled,
+        'venue_id', ev.venue_id,
         'is_admin', is_event_admin(p_event_id, current_uid),
         'creator_name', (SELECT name FROM profiles WHERE id = ev.creator_id),
         'going_count', (SELECT COUNT(*) FROM rsvps WHERE event_id = p_event_id AND status = 'going' AND kicked_at IS NULL),
@@ -1283,6 +1396,354 @@ END;
 $$;
 
 -- ============================================================
+-- RPC: purchase_timeslot
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION purchase_timeslot(p_timeslot_id INT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    current_uid UUID;
+    ts RECORD;
+    current_bookings INT;
+    new_booking_id INT;
+    new_qr_token UUID;
+BEGIN
+    current_uid := auth.uid();
+    IF current_uid IS NULL THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'not_authenticated');
+    END IF;
+
+    PERFORM pg_advisory_xact_lock(p_timeslot_id);
+
+    SELECT * INTO ts FROM timeslots WHERE id = p_timeslot_id;
+    IF ts.id IS NULL THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'timeslot_not_found');
+    END IF;
+
+    IF NOT ts.active THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'timeslot_inactive');
+    END IF;
+
+    IF ts.date < CURRENT_DATE THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'timeslot_past');
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM bookings WHERE timeslot_id = p_timeslot_id AND user_id = current_uid AND status != 'cancelled') THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'already_booked');
+    END IF;
+
+    SELECT COUNT(*) INTO current_bookings
+    FROM bookings WHERE timeslot_id = p_timeslot_id AND status IN ('confirmed', 'checked_in');
+
+    IF current_bookings >= ts.capacity THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'sold_out');
+    END IF;
+
+    new_qr_token := gen_random_uuid();
+    INSERT INTO bookings (timeslot_id, user_id, qr_token, status)
+    VALUES (p_timeslot_id, current_uid, new_qr_token, 'confirmed')
+    RETURNING id INTO new_booking_id;
+
+    INSERT INTO transactions (booking_id, user_id, amount, currency, status, payment_method)
+    VALUES (new_booking_id, current_uid, ts.price, 'NOK', 'completed', 'mock');
+
+    INSERT INTO notifications (user_id, type, venue_id, actor_id)
+    VALUES (current_uid, 'booking_confirmed', ts.venue_id, current_uid);
+
+    RETURN jsonb_build_object('status', 'success', 'booking_id', new_booking_id, 'qr_token', new_qr_token);
+END;
+$$;
+
+-- ============================================================
+-- RPC: verify_queue_ticket
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION verify_queue_ticket(p_venue_id INT, p_qr_token UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    current_uid UUID;
+    b RECORD;
+BEGIN
+    current_uid := auth.uid();
+    IF NOT is_venue_staff(p_venue_id, current_uid) THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'not_staff');
+    END IF;
+
+    SELECT b2.id AS booking_id, b2.status AS booking_status, b2.checked_in_at,
+           b2.user_id, p.name AS user_name, p.avatar_url AS user_avatar_url,
+           ts.date, ts.start_time, ts.end_time, ts.description AS ts_description, ts.venue_id
+    INTO b
+    FROM bookings b2
+    JOIN profiles p ON p.id = b2.user_id
+    JOIN timeslots ts ON ts.id = b2.timeslot_id
+    WHERE b2.qr_token = p_qr_token AND ts.venue_id = p_venue_id;
+
+    IF b.booking_id IS NULL THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'invalid_ticket');
+    END IF;
+
+    RETURN jsonb_build_object(
+        'status', 'success',
+        'booking_id', b.booking_id,
+        'booking_status', b.booking_status,
+        'checked_in_at', b.checked_in_at,
+        'user_name', b.user_name,
+        'user_avatar_url', b.user_avatar_url,
+        'date', b.date,
+        'start_time', b.start_time,
+        'end_time', b.end_time,
+        'timeslot_description', b.ts_description
+    );
+END;
+$$;
+
+-- ============================================================
+-- RPC: checkin_queue_ticket
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION checkin_queue_ticket(p_booking_id INT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    current_uid UUID;
+    b RECORD;
+BEGIN
+    current_uid := auth.uid();
+
+    SELECT b2.*, ts.venue_id INTO b
+    FROM bookings b2
+    JOIN timeslots ts ON ts.id = b2.timeslot_id
+    WHERE b2.id = p_booking_id;
+
+    IF b.id IS NULL THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'not_found');
+    END IF;
+
+    IF NOT is_venue_staff(b.venue_id, current_uid) THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'not_staff');
+    END IF;
+
+    IF b.status = 'checked_in' THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'already_checked_in');
+    END IF;
+
+    IF b.status = 'cancelled' THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'booking_cancelled');
+    END IF;
+
+    UPDATE bookings SET status = 'checked_in', checked_in_at = NOW() WHERE id = p_booking_id;
+
+    RETURN jsonb_build_object('status', 'success');
+END;
+$$;
+
+-- ============================================================
+-- RPC: cancel_booking
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION cancel_booking(p_booking_id INT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    current_uid UUID;
+    b RECORD;
+BEGIN
+    current_uid := auth.uid();
+    IF current_uid IS NULL THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'not_authenticated');
+    END IF;
+
+    SELECT b2.*, ts.venue_id INTO b
+    FROM bookings b2
+    JOIN timeslots ts ON ts.id = b2.timeslot_id
+    WHERE b2.id = p_booking_id;
+
+    IF b.id IS NULL THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'not_found');
+    END IF;
+
+    IF b.user_id != current_uid AND NOT is_venue_staff(b.venue_id, current_uid) THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'not_authorized');
+    END IF;
+
+    IF b.status = 'cancelled' THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'already_cancelled');
+    END IF;
+
+    UPDATE bookings SET status = 'cancelled' WHERE id = p_booking_id;
+    UPDATE transactions SET status = 'refunded' WHERE booking_id = p_booking_id;
+
+    INSERT INTO notifications (user_id, type, venue_id, actor_id)
+    VALUES (b.user_id, 'booking_cancelled', b.venue_id, current_uid);
+
+    RETURN jsonb_build_object('status', 'success');
+END;
+$$;
+
+-- ============================================================
+-- RPC: get_venue_detail
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION get_venue_detail(p_venue_id INT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    current_uid UUID;
+    v RECORD;
+    staff_role TEXT;
+    upcoming_timeslots JSONB;
+BEGIN
+    current_uid := auth.uid();
+
+    SELECT * INTO v FROM venues WHERE id = p_venue_id;
+    IF v.id IS NULL THEN RETURN NULL; END IF;
+
+    SELECT role INTO staff_role FROM venue_staff WHERE venue_id = p_venue_id AND user_id = current_uid;
+
+    SELECT COALESCE(jsonb_agg(
+        jsonb_build_object(
+            'id', ts.id, 'date', ts.date, 'start_time', ts.start_time, 'end_time', ts.end_time,
+            'price', ts.price, 'capacity', ts.capacity, 'description', ts.description, 'event_id', ts.event_id,
+            'booked_count', (SELECT COUNT(*) FROM bookings b WHERE b.timeslot_id = ts.id AND b.status IN ('confirmed', 'checked_in')),
+            'my_booking', (SELECT jsonb_build_object('id', b.id, 'status', b.status, 'qr_token', b.qr_token)
+                          FROM bookings b WHERE b.timeslot_id = ts.id AND b.user_id = current_uid AND b.status != 'cancelled' LIMIT 1)
+        ) ORDER BY ts.date, ts.start_time
+    ), '[]'::jsonb)
+    INTO upcoming_timeslots
+    FROM timeslots ts
+    WHERE ts.venue_id = p_venue_id AND ts.active = true AND ts.date >= CURRENT_DATE;
+
+    RETURN jsonb_build_object(
+        'id', v.id, 'name', v.name, 'description', v.description, 'address', v.address,
+        'latitude', v.latitude, 'longitude', v.longitude, 'image_url', v.image_url,
+        'opening_hours', v.opening_hours, 'contact_email', v.contact_email, 'contact_phone', v.contact_phone,
+        'owner_id', v.owner_id, 'verified', v.verified, 'created_at', v.created_at,
+        'is_staff', (staff_role IS NOT NULL), 'staff_role', staff_role,
+        'timeslots', upcoming_timeslots
+    );
+END;
+$$;
+
+-- ============================================================
+-- RPC: get_venue_dashboard
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION get_venue_dashboard(p_venue_id INT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    current_uid UUID;
+    v RECORD;
+    all_timeslots JSONB;
+    staff_list JSONB;
+    total_revenue INT;
+    bookings_today INT;
+    sold_out_count INT;
+BEGIN
+    current_uid := auth.uid();
+
+    IF NOT is_venue_staff(p_venue_id, current_uid, ARRAY['owner','manager']) THEN
+        RETURN jsonb_build_object('status', 'error', 'code', 'not_staff');
+    END IF;
+
+    SELECT * INTO v FROM venues WHERE id = p_venue_id;
+    IF v.id IS NULL THEN RETURN NULL; END IF;
+
+    SELECT COALESCE(SUM(t.amount), 0) INTO total_revenue
+    FROM transactions t JOIN bookings b ON b.id = t.booking_id JOIN timeslots ts ON ts.id = b.timeslot_id
+    WHERE ts.venue_id = p_venue_id AND t.status = 'completed';
+
+    SELECT COUNT(*) INTO bookings_today
+    FROM bookings b JOIN timeslots ts ON ts.id = b.timeslot_id
+    WHERE ts.venue_id = p_venue_id AND ts.date = CURRENT_DATE AND b.status IN ('confirmed', 'checked_in');
+
+    SELECT COUNT(*) INTO sold_out_count
+    FROM timeslots ts WHERE ts.venue_id = p_venue_id AND ts.active = true AND ts.date >= CURRENT_DATE
+      AND (SELECT COUNT(*) FROM bookings b WHERE b.timeslot_id = ts.id AND b.status IN ('confirmed', 'checked_in')) >= ts.capacity;
+
+    SELECT COALESCE(jsonb_agg(
+        jsonb_build_object(
+            'id', ts.id, 'date', ts.date, 'start_time', ts.start_time, 'end_time', ts.end_time,
+            'price', ts.price, 'capacity', ts.capacity, 'description', ts.description,
+            'active', ts.active, 'event_id', ts.event_id,
+            'bookings', COALESCE((
+                SELECT jsonb_agg(jsonb_build_object(
+                    'id', b.id, 'user_id', b.user_id, 'user_name', p.name, 'user_avatar_url', p.avatar_url,
+                    'status', b.status, 'checked_in_at', b.checked_in_at, 'created_at', b.created_at
+                )) FROM bookings b JOIN profiles p ON p.id = b.user_id WHERE b.timeslot_id = ts.id AND b.status != 'cancelled'
+            ), '[]'::jsonb)
+        ) ORDER BY ts.date DESC, ts.start_time DESC
+    ), '[]'::jsonb) INTO all_timeslots FROM timeslots ts WHERE ts.venue_id = p_venue_id;
+
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'id', vs.id, 'user_id', vs.user_id, 'role', vs.role,
+        'name', p.name, 'email', p.email, 'avatar_url', p.avatar_url
+    )), '[]'::jsonb) INTO staff_list
+    FROM venue_staff vs JOIN profiles p ON p.id = vs.user_id WHERE vs.venue_id = p_venue_id;
+
+    RETURN jsonb_build_object(
+        'venue', jsonb_build_object('id', v.id, 'name', v.name, 'description', v.description,
+            'address', v.address, 'image_url', v.image_url, 'opening_hours', v.opening_hours, 'verified', v.verified),
+        'timeslots', all_timeslots, 'staff', staff_list,
+        'stats', jsonb_build_object('total_revenue', total_revenue, 'bookings_today', bookings_today, 'sold_out_count', sold_out_count)
+    );
+END;
+$$;
+
+-- ============================================================
+-- RPC: get_my_bookings
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION get_my_bookings()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    current_uid UUID;
+    result JSONB;
+BEGIN
+    current_uid := auth.uid();
+    IF current_uid IS NULL THEN RETURN '[]'::jsonb; END IF;
+
+    SELECT COALESCE(jsonb_agg(
+        jsonb_build_object(
+            'booking_id', b.id, 'status', b.status, 'qr_token', b.qr_token,
+            'checked_in_at', b.checked_in_at, 'created_at', b.created_at,
+            'timeslot', jsonb_build_object('id', ts.id, 'date', ts.date, 'start_time', ts.start_time,
+                'end_time', ts.end_time, 'price', ts.price, 'description', ts.description),
+            'venue', jsonb_build_object('id', v.id, 'name', v.name, 'address', v.address, 'image_url', v.image_url)
+        ) ORDER BY ts.date DESC, ts.start_time DESC
+    ), '[]'::jsonb) INTO result
+    FROM bookings b JOIN timeslots ts ON ts.id = b.timeslot_id JOIN venues v ON v.id = ts.venue_id
+    WHERE b.user_id = current_uid;
+
+    RETURN result;
+END;
+$$;
+
+-- ============================================================
 -- ROW LEVEL SECURITY
 -- ============================================================
 
@@ -1474,6 +1935,79 @@ CREATE POLICY "Users can delete own follows or received follows"
 
 CREATE POLICY "Users can update follows where they are the target"
     ON follows FOR UPDATE USING (following_id = auth.uid());
+
+-- Venues
+ALTER TABLE venues ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Venues are publicly readable"
+    ON venues FOR SELECT USING (true);
+
+CREATE POLICY "Authenticated users can create venues"
+    ON venues FOR INSERT WITH CHECK (auth.uid() IS NOT NULL AND owner_id = auth.uid());
+
+CREATE POLICY "Owner can update own venue"
+    ON venues FOR UPDATE USING (owner_id = auth.uid());
+
+CREATE POLICY "Owner can delete own venue"
+    ON venues FOR DELETE USING (owner_id = auth.uid());
+
+-- Venue Staff
+ALTER TABLE venue_staff ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Staff records readable by staff members"
+    ON venue_staff FOR SELECT USING (
+        user_id = auth.uid()
+        OR is_venue_staff(venue_id, auth.uid(), ARRAY['owner','manager','bouncer'])
+    );
+
+CREATE POLICY "Owner can add staff"
+    ON venue_staff FOR INSERT WITH CHECK (
+        is_venue_staff(venue_id, auth.uid(), ARRAY['owner'])
+    );
+
+CREATE POLICY "Owner can remove staff"
+    ON venue_staff FOR DELETE USING (
+        is_venue_staff(venue_id, auth.uid(), ARRAY['owner'])
+    );
+
+-- Timeslots
+ALTER TABLE timeslots ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Active timeslots are publicly readable"
+    ON timeslots FOR SELECT USING (active = true OR is_venue_staff(venue_id, auth.uid(), ARRAY['owner','manager']));
+
+CREATE POLICY "Staff can create timeslots"
+    ON timeslots FOR INSERT WITH CHECK (is_venue_staff(venue_id, auth.uid(), ARRAY['owner','manager']));
+
+CREATE POLICY "Staff can update timeslots"
+    ON timeslots FOR UPDATE USING (is_venue_staff(venue_id, auth.uid(), ARRAY['owner','manager']));
+
+CREATE POLICY "Staff can delete timeslots"
+    ON timeslots FOR DELETE USING (is_venue_staff(venue_id, auth.uid(), ARRAY['owner','manager']));
+
+-- Bookings
+ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own bookings"
+    ON bookings FOR SELECT USING (
+        user_id = auth.uid()
+        OR is_venue_staff((SELECT venue_id FROM timeslots WHERE id = timeslot_id), auth.uid())
+    );
+
+CREATE POLICY "Users can create own bookings"
+    ON bookings FOR INSERT WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users or staff can update bookings"
+    ON bookings FOR UPDATE USING (
+        user_id = auth.uid()
+        OR is_venue_staff((SELECT venue_id FROM timeslots WHERE id = timeslot_id), auth.uid())
+    );
+
+-- Transactions
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can read own transactions"
+    ON transactions FOR SELECT USING (user_id = auth.uid());
 
 -- ============================================================
 -- ENABLE REALTIME on notifications

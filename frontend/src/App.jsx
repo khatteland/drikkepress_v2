@@ -153,6 +153,19 @@ function parseUrl(pathname) {
 
   if (pathname === "/friends") return { page: "friends", data: {} };
 
+  if (pathname === "/venues") return { page: "venues", data: {} };
+  if (pathname === "/venue/register") return { page: "venue-register", data: {} };
+  if (pathname === "/my-tickets") return { page: "my-tickets", data: {} };
+
+  const venueScanMatch = pathname.match(/^\/venue\/(\d+)\/scan$/);
+  if (venueScanMatch) return { page: "venue-scan", data: { venueId: parseInt(venueScanMatch[1]) } };
+
+  const venueManageMatch = pathname.match(/^\/venue\/(\d+)\/manage$/);
+  if (venueManageMatch) return { page: "venue-manage", data: { venueId: parseInt(venueManageMatch[1]) } };
+
+  const venueMatch = pathname.match(/^\/venue\/(\d+)$/);
+  if (venueMatch) return { page: "venue-detail", data: { venueId: parseInt(venueMatch[1]) } };
+
   const userMatch = pathname.match(/^\/user\/([a-f0-9-]+)$/);
   if (userMatch) return { page: "user-profile", data: { userId: userMatch[1] } };
 
@@ -182,6 +195,12 @@ function pageToUrl(page, data = {}) {
     case "checkin": return `/event/${data.eventId}/checkin`;
     case "friends": return "/friends";
     case "user-profile": return `/user/${data.userId}`;
+    case "venues": return "/venues";
+    case "venue-detail": return `/venue/${data.venueId}`;
+    case "venue-register": return "/venue/register";
+    case "venue-manage": return `/venue/${data.venueId}/manage`;
+    case "venue-scan": return `/venue/${data.venueId}/scan`;
+    case "my-tickets": return "/my-tickets";
     default: return "/";
   }
 }
@@ -616,6 +635,8 @@ function NotificationDropdown({ notifications, unreadCount, onNavigate, onMarkAl
     }
     if (notif.type === "follow_request" || notif.type === "follow_accepted") {
       onNavigate("user-profile", { userId: notif.actor_id });
+    } else if (notif.type === "booking_confirmed" || notif.type === "booking_cancelled") {
+      onNavigate("my-tickets");
     } else {
       onNavigate("event-detail", { eventId: notif.event_id });
     }
@@ -634,6 +655,8 @@ function NotificationDropdown({ notifications, unreadCount, onNavigate, onMarkAl
       case "kicked": return <><strong>{actor}</strong> {t("notif.kicked")}</>;
       case "follow_request": return <><strong>{actor}</strong> {t("notif.follow_request")}</>;
       case "follow_accepted": return <><strong>{actor}</strong> {t("notif.follow_accepted")}</>;
+      case "booking_confirmed": return t("notif.booking_confirmed");
+      case "booking_cancelled": return t("notif.booking_cancelled");
       default: return notif.type;
     }
   };
@@ -689,9 +712,17 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
         <button className={currentPage === "map" ? "active" : ""} onClick={() => nav("map")}>
           {t("nav.map")}
         </button>
+        <button className={currentPage === "venues" ? "active" : ""} onClick={() => nav("venues")}>
+          {t("nav.venues")}
+        </button>
         {user && (
           <button className={currentPage === "friends" ? "active" : ""} onClick={() => nav("friends")}>
             {t("nav.friends")}
+          </button>
+        )}
+        {user && (
+          <button className={currentPage === "my-tickets" ? "active" : ""} onClick={() => nav("my-tickets")}>
+            {t("nav.myTickets")}
           </button>
         )}
         {user ? (
@@ -1398,11 +1429,18 @@ function EventDetailPage({ eventId, user, onNavigate }) {
   const [accessMessage, setAccessMessage] = useState("");
   const [accessSubmitting, setAccessSubmitting] = useState(false);
   const [accessError, setAccessError] = useState("");
+  const [venueData, setVenueData] = useState(null);
 
   const loadEvent = useCallback(() => {
     supabase.rpc("get_event_detail", { p_event_id: eventId }).then(({ data, error }) => {
       setEvent(data);
       setLoading(false);
+      // Load venue data if event has venue_id
+      if (data && data.venue_id) {
+        supabase.from("venues").select("id, name, address, image_url").eq("id", data.venue_id).single().then(({ data: vd }) => {
+          setVenueData(vd);
+        });
+      }
     });
   }, [eventId]);
 
@@ -1566,6 +1604,20 @@ function EventDetailPage({ eventId, user, onNavigate }) {
         <div className="event-detail-creator">
           {t("detail.organizedBy")} <strong>{event.creator_name}</strong>
         </div>
+
+        {venueData && (
+          <div className="venue-link-card" onClick={() => onNavigate("venue-detail", { venueId: venueData.id })}>
+            {venueData.image_url ? (
+              <img src={venueData.image_url} alt={venueData.name} />
+            ) : (
+              <div style={{ width: 48, height: 48, borderRadius: 8, background: "var(--bg-secondary)", display: "flex", alignItems: "center", justifyContent: "center" }}>🏢</div>
+            )}
+            <div className="venue-link-card-info">
+              <h4>{venueData.name}</h4>
+              <p>{venueData.address}</p>
+            </div>
+          </div>
+        )}
 
         <div className="event-actions">
           <button className="btn btn-secondary btn-sm" onClick={handleShare}>{t("detail.share")}</button>
@@ -2090,13 +2142,22 @@ function EventFormPage({ eventId, user, onNavigate }) {
   const [form, setForm] = useState({
     title: "", description: "", date: "", time: "", end_time: "",
     location: "", category: "Technology", visibility: "public",
-    join_mode: "open", max_attendees: "",
+    join_mode: "open", max_attendees: "", venue_id: "",
   });
   const [images, setImages] = useState([]);
   const [error, setError] = useState("");
   const [geocodeError, setGeocodeError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(isEdit);
+  const [myVenues, setMyVenues] = useState([]);
+
+  useEffect(() => {
+    if (user) {
+      supabase.from("venue_staff").select("venue_id, venues(id, name)").eq("user_id", user.id).in("role", ["owner", "manager"]).then(({ data }) => {
+        setMyVenues((data || []).map((d) => d.venues).filter(Boolean));
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
     if (isEdit) {
@@ -2147,6 +2208,7 @@ function EventFormPage({ eventId, user, onNavigate }) {
       latitude: geo ? geo.lat : null,
       longitude: geo ? geo.lng : null,
       max_attendees: parseInt(form.max_attendees) || null,
+      venue_id: form.venue_id ? parseInt(form.venue_id) : null,
     };
 
     let targetEventId = eventId;
@@ -2244,6 +2306,15 @@ function EventFormPage({ eventId, user, onNavigate }) {
               <input type="number" min="1" value={form.max_attendees} onChange={update("max_attendees")} placeholder={t("form.maxAttendeesPlaceholder")} />
               <small style={{ color: "#888", fontSize: 12, marginTop: 4, display: "block" }}>{t("form.maxAttendeesHint")}</small>
             </div>
+            {myVenues.length > 0 && (
+              <div className="form-group">
+                <label>{t("nav.venues")}</label>
+                <select value={form.venue_id} onChange={update("venue_id")}>
+                  <option value="">—</option>
+                  {myVenues.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+            )}
             <button className="btn btn-primary btn-full" type="submit" disabled={submitting}>
               {submitting ? t("form.geocoding") : isEdit ? t("form.save") : t("form.create")}
             </button>
@@ -2902,6 +2973,796 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
 }
 
 // ============================================================
+// VENUE CARD
+// ============================================================
+
+function VenueCard({ venue, onClick }) {
+  const { t } = useI18n();
+  return (
+    <div className="venue-card" onClick={onClick}>
+      {venue.image_url ? (
+        <img className="venue-card-image" src={venue.image_url} alt={venue.name} />
+      ) : (
+        <div className="venue-card-image-placeholder">🏢</div>
+      )}
+      <div className="venue-card-body">
+        <h3>
+          {venue.name}
+          {venue.verified && <span className="venue-badge verified">{t("venue.verified")}</span>}
+        </h3>
+        <p>{venue.address}</p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// VENUES PAGE
+// ============================================================
+
+function VenuesPage({ user, onNavigate }) {
+  const { t } = useI18n();
+  const [venues, setVenues] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.from("venues").select("*").order("created_at", { ascending: false }).then(({ data }) => {
+      setVenues(data || []);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return <div className="loading">{t("loading")}</div>;
+
+  return (
+    <div className="venues-page">
+      <div className="venues-page-header">
+        <h1>{t("venue.title")}</h1>
+        {user && (
+          <button className="btn btn-primary" onClick={() => onNavigate("venue-register")}>
+            {t("venue.register")}
+          </button>
+        )}
+      </div>
+      {venues.length === 0 ? (
+        <div className="empty-state">
+          <p>{t("venue.noVenues")}</p>
+        </div>
+      ) : (
+        <div className="venue-grid">
+          {venues.map((v) => (
+            <VenueCard key={v.id} venue={v} onClick={() => onNavigate("venue-detail", { venueId: v.id })} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// VENUE DETAIL PAGE
+// ============================================================
+
+function VenueDetailPage({ venueId, user, onNavigate }) {
+  const { t, lang } = useI18n();
+  const [venue, setVenue] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [purchaseTimeslot, setPurchaseTimeslot] = useState(null);
+
+  const loadVenue = useCallback(() => {
+    supabase.rpc("get_venue_detail", { p_venue_id: venueId }).then(({ data }) => {
+      setVenue(data);
+      setLoading(false);
+    });
+  }, [venueId]);
+
+  useEffect(() => { loadVenue(); }, [loadVenue]);
+
+  if (loading) return <div className="loading">{t("loading")}</div>;
+  if (!venue) return <div className="container"><p>{t("detail.notFound")}</p></div>;
+
+  const formatPrice = (ore) => ore === 0 ? "Gratis" : `${(ore / 100).toFixed(0)} kr`;
+
+  return (
+    <div className="venue-detail-page">
+      <button className="back-button" onClick={() => onNavigate("venues")}>{t("detail.back")}</button>
+
+      <div className="venue-detail-header">
+        {venue.image_url ? (
+          <img src={venue.image_url} alt={venue.name} />
+        ) : (
+          <div className="venue-detail-header-placeholder">🏢</div>
+        )}
+      </div>
+
+      <div className="venue-detail-info">
+        <h1>
+          {venue.name}
+          {venue.verified && <span className="venue-badge verified">{t("venue.verified")}</span>}
+        </h1>
+        <div className="venue-detail-meta">
+          <span>📍 {venue.address}</span>
+          {venue.opening_hours && <span>🕐 {venue.opening_hours}</span>}
+          {venue.contact_email && <span>✉️ {venue.contact_email}</span>}
+          {venue.contact_phone && <span>📞 {venue.contact_phone}</span>}
+        </div>
+        {venue.description && <p>{venue.description}</p>}
+      </div>
+
+      {venue.is_staff && (
+        <div className="venue-detail-actions">
+          <button className="btn btn-primary" onClick={() => onNavigate("venue-manage", { venueId: venue.id })}>
+            {t("venue.manage")}
+          </button>
+          <button className="btn btn-secondary" onClick={() => onNavigate("venue-scan", { venueId: venue.id })}>
+            {t("scanner.title")}
+          </button>
+        </div>
+      )}
+
+      <h2>{t("venue.upcomingTimeslots")}</h2>
+      {venue.timeslots && venue.timeslots.length > 0 ? (
+        <div className="timeslot-list">
+          {venue.timeslots.map((ts) => {
+            const spotsLeft = ts.capacity - (ts.booked_count || 0);
+            const isSoldOut = spotsLeft <= 0;
+            const hasBooking = ts.my_booking && ts.my_booking.id;
+            return (
+              <div key={ts.id} className={`timeslot-card ${isSoldOut ? "sold-out" : ""}`}>
+                <div className="timeslot-card-date">{formatDate(ts.date, lang)}</div>
+                <div className="timeslot-card-time">{ts.start_time?.slice(0, 5)} – {ts.end_time?.slice(0, 5)}</div>
+                {ts.description && <div className="timeslot-card-desc">{ts.description}</div>}
+                <div className="timeslot-card-footer">
+                  <span className="timeslot-card-price">{formatPrice(ts.price)}</span>
+                  <span className={`timeslot-card-spots ${isSoldOut ? "sold-out" : ""}`}>
+                    {isSoldOut ? t("timeslot.soldOut") : `${spotsLeft} ${t("timeslot.spotsLeft")}`}
+                  </span>
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  {hasBooking ? (
+                    <button className="btn btn-secondary btn-sm" disabled>{t("booking.alreadyBooked")}</button>
+                  ) : isSoldOut ? null : (
+                    <button className="btn btn-primary btn-sm" onClick={() => {
+                      if (!user) return onNavigate("login");
+                      setPurchaseTimeslot(ts);
+                    }}>
+                      {t("booking.buyFor")} {formatPrice(ts.price)}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p style={{ color: "var(--text-secondary)" }}>{t("venue.noTimeslots")}</p>
+      )}
+
+      {purchaseTimeslot && (
+        <PurchaseModal
+          timeslot={purchaseTimeslot}
+          venue={venue}
+          user={user}
+          onClose={() => setPurchaseTimeslot(null)}
+          onSuccess={() => { setPurchaseTimeslot(null); loadVenue(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// PURCHASE MODAL
+// ============================================================
+
+function PurchaseModal({ timeslot, venue, user, onClose, onSuccess }) {
+  const { t, lang } = useI18n();
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+
+  const formatPrice = (ore) => ore === 0 ? "Gratis" : `${(ore / 100).toFixed(0)} kr`;
+
+  const handlePurchase = async () => {
+    setSubmitting(true);
+    setError("");
+    const { data, error: err } = await supabase.rpc("purchase_timeslot", { p_timeslot_id: timeslot.id });
+    setSubmitting(false);
+    if (err) { setError(err.message); return; }
+    if (data.status === "error") {
+      setError(data.code === "already_booked" ? t("booking.alreadyBooked") : data.code === "sold_out" ? t("timeslot.soldOut") : data.code);
+      return;
+    }
+    setResult(data);
+  };
+
+  const qrValue = result ? `${window.location.origin}/venue/${venue.id}/scan?token=${result.qr_token}` : "";
+
+  return (
+    <div className="purchase-modal-overlay" onClick={onClose}>
+      <div className="purchase-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="purchase-modal-close" onClick={onClose}>&times;</button>
+
+        {result ? (
+          <div className="purchase-modal-success">
+            <h3>{t("booking.success")}</h3>
+            <p>{t("booking.yourTicket")}</p>
+            <div className="booking-ticket">
+              <div className="booking-ticket-details">
+                <p><strong>{venue.name}</strong></p>
+                <p>{formatDate(timeslot.date, lang)}</p>
+                <p>{timeslot.start_time?.slice(0, 5)} – {timeslot.end_time?.slice(0, 5)}</p>
+                <p>{formatPrice(timeslot.price)}</p>
+              </div>
+              <div className="booking-ticket-qr">
+                <QRCodeSVG value={qrValue} size={180} />
+              </div>
+            </div>
+            <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={onSuccess}>OK</button>
+          </div>
+        ) : (
+          <>
+            <h2>{t("booking.confirm")}</h2>
+            <div className="purchase-modal-summary">
+              <p><strong>{venue.name}</strong></p>
+              <p>{formatDate(timeslot.date, lang)}</p>
+              <p>{timeslot.start_time?.slice(0, 5)} – {timeslot.end_time?.slice(0, 5)}</p>
+              {timeslot.description && <p>{timeslot.description}</p>}
+              <p className="price-line">{formatPrice(timeslot.price)}</p>
+            </div>
+            <div className="mock-payment-badge">
+              ⚠️ {t("booking.mockPayment")} — {t("booking.mockPaymentDesc")}
+            </div>
+            {error && <div className="form-error">{error}</div>}
+            <button className="btn btn-primary" style={{ width: "100%" }} onClick={handlePurchase} disabled={submitting}>
+              {submitting ? t("loading") : `${t("booking.confirm")} — ${formatPrice(timeslot.price)}`}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// VENUE REGISTER PAGE
+// ============================================================
+
+function VenueRegisterPage({ user, onNavigate }) {
+  const { t, lang } = useI18n();
+  const [form, setForm] = useState({
+    name: "", description: "", address: "", opening_hours: "",
+    contact_email: "", contact_phone: "",
+  });
+  const [imageFile, setImageFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!user) { onNavigate("login"); return null; }
+
+  const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name || !form.address) { setError(t("form.required")); return; }
+    setSubmitting(true);
+    setError("");
+
+    let image_url = null;
+    if (imageFile) {
+      try {
+        image_url = await uploadImage(imageFile, `venues/${user.id}/${Date.now()}-${imageFile.name}`);
+      } catch (err) { setError(err.message); setSubmitting(false); return; }
+    }
+
+    const geo = await geocodeAddress(form.address, lang);
+
+    const { data, error: err } = await supabase.from("venues").insert({
+      name: form.name, description: form.description, address: form.address,
+      opening_hours: form.opening_hours, contact_email: form.contact_email,
+      contact_phone: form.contact_phone, image_url,
+      latitude: geo ? geo.lat : null, longitude: geo ? geo.lng : null,
+      owner_id: user.id,
+    }).select().single();
+
+    if (err) { setError(err.message); setSubmitting(false); return; }
+
+    // Add owner as staff
+    await supabase.from("venue_staff").insert({ venue_id: data.id, user_id: user.id, role: "owner" });
+
+    setSubmitting(false);
+    onNavigate("venue-manage", { venueId: data.id });
+  };
+
+  return (
+    <div className="venue-register-page">
+      <button className="back-button" onClick={() => onNavigate("venues")}>{t("detail.back")}</button>
+      <h1>{t("venue.register")}</h1>
+      {error && <div className="form-error">{error}</div>}
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>{t("venue.name")} *</label>
+          <input type="text" value={form.name} onChange={update("name")} />
+        </div>
+        <div className="form-group">
+          <label>{t("venue.description")}</label>
+          <textarea value={form.description} onChange={update("description")} />
+        </div>
+        <div className="form-group">
+          <label>{t("venue.address")} *</label>
+          <input type="text" value={form.address} onChange={update("address")} placeholder={t("form.addressPlaceholder")} />
+        </div>
+        <div className="form-group">
+          <label>{t("venue.openingHours")}</label>
+          <input type="text" value={form.opening_hours} onChange={update("opening_hours")} />
+        </div>
+        <div className="form-row">
+          <div className="form-group">
+            <label>{t("venue.contactEmail")}</label>
+            <input type="email" value={form.contact_email} onChange={update("contact_email")} />
+          </div>
+          <div className="form-group">
+            <label>{t("venue.contactPhone")}</label>
+            <input type="tel" value={form.contact_phone} onChange={update("contact_phone")} />
+          </div>
+        </div>
+        <div className="form-group">
+          <label>{t("venue.image")}</label>
+          <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files[0])} />
+        </div>
+        <button className="btn btn-primary" type="submit" disabled={submitting}>
+          {submitting ? t("loading") : t("venue.create")}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ============================================================
+// VENUE MANAGE PAGE (DASHBOARD)
+// ============================================================
+
+function VenueManagePage({ venueId, user, onNavigate }) {
+  const { t, lang } = useI18n();
+  const [dashboard, setDashboard] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [tsForm, setTsForm] = useState({
+    date: "", start_time: "", end_time: "", price: "", capacity: "10", description: "",
+  });
+  const [tsSubmitting, setTsSubmitting] = useState(false);
+  const [staffEmail, setStaffEmail] = useState("");
+  const [staffRole, setStaffRole] = useState("bouncer");
+  const [staffError, setStaffError] = useState("");
+
+  const loadDashboard = useCallback(() => {
+    supabase.rpc("get_venue_dashboard", { p_venue_id: venueId }).then(({ data }) => {
+      setDashboard(data);
+      setLoading(false);
+    });
+  }, [venueId]);
+
+  useEffect(() => { loadDashboard(); }, [loadDashboard]);
+
+  if (loading) return <div className="loading">{t("loading")}</div>;
+  if (!dashboard || dashboard.status === "error") {
+    return <div className="container"><p>{t("scanner.notStaff")}</p></div>;
+  }
+
+  const formatPrice = (ore) => ore === 0 ? "Gratis" : `${(ore / 100).toFixed(0)} kr`;
+
+  const handleCreateTimeslot = async (e) => {
+    e.preventDefault();
+    if (!tsForm.date || !tsForm.start_time || !tsForm.end_time) return;
+    setTsSubmitting(true);
+    await supabase.from("timeslots").insert({
+      venue_id: venueId,
+      date: tsForm.date,
+      start_time: tsForm.start_time,
+      end_time: tsForm.end_time,
+      price: parseInt(tsForm.price) || 0,
+      capacity: parseInt(tsForm.capacity) || 10,
+      description: tsForm.description,
+    });
+    setTsForm({ date: "", start_time: "", end_time: "", price: "", capacity: "10", description: "" });
+    setTsSubmitting(false);
+    loadDashboard();
+  };
+
+  const handleDeactivateTimeslot = async (tsId) => {
+    await supabase.from("timeslots").update({ active: false }).eq("id", tsId);
+    loadDashboard();
+  };
+
+  const handleAddStaff = async () => {
+    setStaffError("");
+    if (!staffEmail) return;
+    const { data: profiles } = await supabase.from("profiles").select("id").eq("email", staffEmail).limit(1);
+    if (!profiles || profiles.length === 0) { setStaffError(t("admin.notFound")); return; }
+    const { error } = await supabase.from("venue_staff").insert({ venue_id: venueId, user_id: profiles[0].id, role: staffRole });
+    if (error) { setStaffError(error.message); return; }
+    setStaffEmail("");
+    loadDashboard();
+  };
+
+  const handleRemoveStaff = async (staffId) => {
+    await supabase.from("venue_staff").delete().eq("id", staffId);
+    loadDashboard();
+  };
+
+  return (
+    <div className="venue-dashboard">
+      <button className="back-button" onClick={() => onNavigate("venue-detail", { venueId })}>{t("detail.back")}</button>
+      <h1>{dashboard.venue.name} — {t("venue.dashboard")}</h1>
+
+      <div className="venue-stats-row">
+        <div className="venue-stat">
+          <div className="venue-stat-value">{formatPrice(dashboard.stats.total_revenue)}</div>
+          <div className="venue-stat-label">Total revenue</div>
+        </div>
+        <div className="venue-stat">
+          <div className="venue-stat-value">{dashboard.stats.bookings_today}</div>
+          <div className="venue-stat-label">Bookings today</div>
+        </div>
+        <div className="venue-stat">
+          <div className="venue-stat-value">{dashboard.stats.sold_out_count}</div>
+          <div className="venue-stat-label">Sold out</div>
+        </div>
+      </div>
+
+      <div className="venue-dashboard-section">
+        <h2>{t("timeslot.create")}</h2>
+        <form className="timeslot-form" onSubmit={handleCreateTimeslot}>
+          <div className="form-row">
+            <div className="form-group">
+              <label>{t("timeslot.date")} *</label>
+              <input type="date" value={tsForm.date} onChange={(e) => setTsForm({ ...tsForm, date: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>{t("timeslot.capacity")}</label>
+              <input type="number" value={tsForm.capacity} onChange={(e) => setTsForm({ ...tsForm, capacity: e.target.value })} />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>{t("timeslot.startTime")} *</label>
+              <input type="time" value={tsForm.start_time} onChange={(e) => setTsForm({ ...tsForm, start_time: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>{t("timeslot.endTime")} *</label>
+              <input type="time" value={tsForm.end_time} onChange={(e) => setTsForm({ ...tsForm, end_time: e.target.value })} />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>{t("timeslot.price")} (øre, f.eks. 19900 = 199 kr)</label>
+            <input type="number" value={tsForm.price} onChange={(e) => setTsForm({ ...tsForm, price: e.target.value })} placeholder="0" />
+          </div>
+          <div className="form-group">
+            <label>{t("timeslot.description")}</label>
+            <input type="text" value={tsForm.description} onChange={(e) => setTsForm({ ...tsForm, description: e.target.value })} />
+          </div>
+          <button className="btn btn-primary" type="submit" disabled={tsSubmitting}>
+            {tsSubmitting ? t("loading") : t("timeslot.create")}
+          </button>
+        </form>
+      </div>
+
+      <div className="venue-dashboard-section">
+        <h2>Timeslots</h2>
+        {dashboard.timeslots && dashboard.timeslots.length > 0 ? (
+          dashboard.timeslots.map((ts) => (
+            <div key={ts.id} className="timeslot-dashboard-item">
+              <div className="timeslot-dashboard-header">
+                <h3>{formatDate(ts.date, lang)} {ts.start_time?.slice(0, 5)}–{ts.end_time?.slice(0, 5)}</h3>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span>{formatPrice(ts.price)}</span>
+                  <span>{ts.bookings?.length || 0}/{ts.capacity}</span>
+                  {ts.active ? (
+                    <button className="btn btn-secondary btn-sm" onClick={() => handleDeactivateTimeslot(ts.id)}>
+                      {t("timeslot.deactivate")}
+                    </button>
+                  ) : (
+                    <span style={{ color: "var(--text-secondary)" }}>Inactive</span>
+                  )}
+                </div>
+              </div>
+              {ts.description && <p style={{ color: "var(--text-secondary)", marginBottom: 8 }}>{ts.description}</p>}
+              {ts.bookings && ts.bookings.length > 0 && (
+                <table className="bookings-table">
+                  <thead>
+                    <tr><th>{t("scanner.guestName")}</th><th>{t("scanner.status")}</th><th>Time</th></tr>
+                  </thead>
+                  <tbody>
+                    {ts.bookings.map((b) => (
+                      <tr key={b.id}>
+                        <td>{b.user_name}</td>
+                        <td>
+                          <span className={`ticket-card-status ${b.status}`}>
+                            {b.status === "checked_in" ? t("booking.checkedIn") : b.status}
+                          </span>
+                        </td>
+                        <td>{b.checked_in_at ? new Date(b.checked_in_at).toLocaleTimeString() : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ))
+        ) : (
+          <p style={{ color: "var(--text-secondary)" }}>{t("venue.noTimeslots")}</p>
+        )}
+      </div>
+
+      <div className="venue-dashboard-section">
+        <h2>{t("venue.staff")}</h2>
+        <div className="staff-list">
+          {dashboard.staff && dashboard.staff.map((s) => (
+            <div key={s.id} className="staff-item">
+              {s.avatar_url ? (
+                <img src={s.avatar_url} alt={s.name} />
+              ) : (
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--bg-secondary)", display: "flex", alignItems: "center", justifyContent: "center" }}>👤</div>
+              )}
+              <div className="staff-item-info">
+                <strong>{s.name}</strong>
+                <span>{s.email}</span>
+              </div>
+              <span className={`staff-role-badge ${s.role}`}>{t(`venue.role.${s.role}`)}</span>
+              {s.role !== "owner" && (
+                <button className="btn btn-secondary btn-sm" onClick={() => handleRemoveStaff(s.id)}>
+                  {t("venue.removeStaff")}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 16, display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div className="form-group" style={{ flex: 1, margin: 0 }}>
+            <label>{t("venue.addStaff")}</label>
+            <input type="email" value={staffEmail} onChange={(e) => setStaffEmail(e.target.value)} placeholder="email@example.com" />
+          </div>
+          <select value={staffRole} onChange={(e) => setStaffRole(e.target.value)} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)" }}>
+            <option value="bouncer">{t("venue.role.bouncer")}</option>
+            <option value="manager">{t("venue.role.manager")}</option>
+          </select>
+          <button className="btn btn-primary" onClick={handleAddStaff}>{t("admin.submit")}</button>
+        </div>
+        {staffError && <div className="form-error" style={{ marginTop: 8 }}>{staffError}</div>}
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <button className="btn btn-primary" onClick={() => onNavigate("venue-scan", { venueId })}>
+          {t("scanner.title")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// VENUE SCANNER PAGE
+// ============================================================
+
+function VenueScannerPage({ venueId, user, onNavigate }) {
+  const { t } = useI18n();
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState(null);
+  const [checkinDone, setCheckinDone] = useState(false);
+  const scannerRef = useRef(null);
+  const html5QrRef = useRef(null);
+
+  const handleScan = async (decodedText) => {
+    try {
+      const url = new URL(decodedText);
+      const tokenParam = url.searchParams.get("token");
+      if (!tokenParam) { setScanResult({ status: "error", code: "invalid_ticket" }); return; }
+
+      const { data } = await supabase.rpc("verify_queue_ticket", { p_venue_id: venueId, p_qr_token: tokenParam });
+      setScanResult(data);
+      setCheckinDone(false);
+      // Stop scanning after reading
+      if (html5QrRef.current) {
+        try { await html5QrRef.current.stop(); } catch {}
+        html5QrRef.current = null;
+      }
+      setScanning(false);
+    } catch {
+      setScanResult({ status: "error", code: "invalid_ticket" });
+    }
+  };
+
+  const startScanning = async () => {
+    if (!scannerRef.current) return;
+    setScanResult(null);
+    setCheckinDone(false);
+    const html5Qr = new Html5Qrcode(scannerRef.current.id);
+    html5QrRef.current = html5Qr;
+    try {
+      await html5Qr.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => { handleScan(decodedText); },
+        () => {}
+      );
+      setScanning(true);
+    } catch (err) {
+      console.error("Scanner error:", err);
+    }
+  };
+
+  const stopScanning = async () => {
+    if (html5QrRef.current) {
+      try { await html5QrRef.current.stop(); } catch {}
+      html5QrRef.current = null;
+    }
+    setScanning(false);
+  };
+
+  const handleCheckin = async () => {
+    if (!scanResult || !scanResult.booking_id) return;
+    const { data } = await supabase.rpc("checkin_queue_ticket", { p_booking_id: scanResult.booking_id });
+    if (data && data.status === "success") {
+      setCheckinDone(true);
+    } else if (data && data.code === "already_checked_in") {
+      setCheckinDone(true);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (html5QrRef.current) {
+        try { html5QrRef.current.stop(); } catch {}
+      }
+    };
+  }, []);
+
+  return (
+    <div className="venue-scanner">
+      <button className="back-button" onClick={() => onNavigate("venue-manage", { venueId })}>{t("detail.back")}</button>
+      <h1>{t("scanner.title")}</h1>
+
+      <div ref={scannerRef} id="venue-qr-reader" style={{ marginBottom: 16 }} />
+
+      {!scanning ? (
+        <button className="btn btn-primary" onClick={startScanning}>{t("scanner.scan")}</button>
+      ) : (
+        <button className="btn btn-secondary" onClick={stopScanning}>{t("scanner.stop")}</button>
+      )}
+
+      {scanResult && scanResult.status === "success" && !checkinDone && (
+        <div className="scan-result-card valid">
+          <div className="scan-result-status success">✓ {t("scanner.verify")}</div>
+          <p><strong>{t("scanner.guestName")}:</strong> {scanResult.user_name}</p>
+          <p><strong>{t("scanner.timeslot")}:</strong> {scanResult.date} {scanResult.start_time?.slice(0, 5)}–{scanResult.end_time?.slice(0, 5)}</p>
+          <p><strong>{t("scanner.status")}:</strong> {scanResult.booking_status === "checked_in" ? t("scanner.alreadyCheckedIn") : scanResult.booking_status}</p>
+          {scanResult.booking_status === "confirmed" && (
+            <button className="btn btn-primary" style={{ marginTop: 16, width: "100%" }} onClick={handleCheckin}>
+              {t("scanner.confirmCheckin")}
+            </button>
+          )}
+          {scanResult.booking_status === "checked_in" && (
+            <div className="scan-result-status warning" style={{ marginTop: 12 }}>⚠️ {t("scanner.alreadyCheckedIn")}</div>
+          )}
+        </div>
+      )}
+
+      {scanResult && scanResult.status === "success" && checkinDone && (
+        <div className="scan-result-card valid">
+          <div className="scan-result-status success">✓ {t("scanner.success")}</div>
+          <p><strong>{scanResult.user_name}</strong></p>
+          <button className="btn btn-primary" style={{ marginTop: 16, width: "100%" }} onClick={() => { setScanResult(null); setCheckinDone(false); }}>
+            {t("scanner.scan")}
+          </button>
+        </div>
+      )}
+
+      {scanResult && scanResult.status === "error" && (
+        <div className="scan-result-card invalid">
+          <div className="scan-result-status error">✗ {scanResult.code === "not_staff" ? t("scanner.notStaff") : t("scanner.invalidTicket")}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// MY TICKETS PAGE
+// ============================================================
+
+function MyTicketsPage({ user, onNavigate }) {
+  const { t, lang } = useI18n();
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("upcoming");
+  const [expandedQr, setExpandedQr] = useState(null);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.rpc("get_my_bookings").then(({ data }) => {
+      setBookings(data || []);
+      setLoading(false);
+    });
+  }, [user]);
+
+  if (!user) { onNavigate("login"); return null; }
+  if (loading) return <div className="loading">{t("loading")}</div>;
+
+  const formatPrice = (ore) => ore === 0 ? "Gratis" : `${(ore / 100).toFixed(0)} kr`;
+  const today = new Date().toISOString().slice(0, 10);
+
+  const upcoming = bookings.filter((b) => b.status === "confirmed" && b.timeslot.date >= today);
+  const past = bookings.filter((b) => b.status !== "confirmed" || b.timeslot.date < today);
+
+  const handleCancel = async (bookingId) => {
+    await supabase.rpc("cancel_booking", { p_booking_id: bookingId });
+    const { data } = await supabase.rpc("get_my_bookings");
+    setBookings(data || []);
+  };
+
+  const visibleBookings = activeTab === "upcoming" ? upcoming : past;
+
+  return (
+    <div className="my-tickets-page">
+      <h1>{t("tickets.title")}</h1>
+
+      <div className="tabs" style={{ marginBottom: 20 }}>
+        <button className={`tab-btn ${activeTab === "upcoming" ? "active" : ""}`} onClick={() => setActiveTab("upcoming")}>
+          {t("tickets.upcoming")} ({upcoming.length})
+        </button>
+        <button className={`tab-btn ${activeTab === "past" ? "active" : ""}`} onClick={() => setActiveTab("past")}>
+          {t("tickets.past")} ({past.length})
+        </button>
+      </div>
+
+      {visibleBookings.length === 0 ? (
+        <div className="empty-state">
+          <p>{t("tickets.empty")}</p>
+          <p style={{ color: "var(--text-secondary)" }}>{t("tickets.emptyHint")}</p>
+          <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => onNavigate("venues")}>
+            {t("nav.venues")}
+          </button>
+        </div>
+      ) : (
+        visibleBookings.map((b) => (
+          <div key={b.booking_id} className="ticket-card">
+            <div className="ticket-card-header">
+              <span className="ticket-card-venue" onClick={() => onNavigate("venue-detail", { venueId: b.venue.id })}>
+                {b.venue.name}
+              </span>
+              <span className={`ticket-card-status ${b.status}`}>
+                {b.status === "confirmed" ? t("booking.notCheckedIn") : b.status === "checked_in" ? t("booking.checkedIn") : t("booking.cancelled")}
+              </span>
+            </div>
+            <div className="ticket-card-meta">
+              {formatDate(b.timeslot.date, lang)} &middot; {b.timeslot.start_time?.slice(0, 5)}–{b.timeslot.end_time?.slice(0, 5)}
+            </div>
+            <div className="ticket-card-price">{formatPrice(b.timeslot.price)}</div>
+
+            {b.status === "confirmed" && (
+              <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                <button className="btn btn-secondary btn-sm" onClick={() => setExpandedQr(expandedQr === b.booking_id ? null : b.booking_id)}>
+                  {expandedQr === b.booking_id ? t("booking.hideQr") : t("booking.showQr")}
+                </button>
+                <button className="btn btn-danger btn-sm" onClick={() => handleCancel(b.booking_id)}>
+                  {t("booking.cancel")}
+                </button>
+              </div>
+            )}
+
+            {expandedQr === b.booking_id && (
+              <div className="booking-ticket-qr" style={{ marginTop: 12 }}>
+                <QRCodeSVG value={`${window.location.origin}/venue/${b.venue.id}/scan?token=${b.qr_token}`} size={180} />
+              </div>
+            )}
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // MAIN APP
 // ============================================================
 
@@ -2991,6 +3852,12 @@ export default function App() {
         {page === "profile" && <ProfilePage user={user} onNavigate={navigate} onAvatarChange={(url) => setUser({ ...user, avatar_url: url })} />}
         {page === "friends" && <FriendsActivityPage user={user} onNavigate={navigate} />}
         {page === "user-profile" && <UserProfilePage userId={pageData.userId} user={user} onNavigate={navigate} />}
+        {page === "venues" && <VenuesPage user={user} onNavigate={navigate} />}
+        {page === "venue-detail" && <VenueDetailPage venueId={pageData.venueId} user={user} onNavigate={navigate} />}
+        {page === "venue-register" && <VenueRegisterPage user={user} onNavigate={navigate} />}
+        {page === "venue-manage" && <VenueManagePage venueId={pageData.venueId} user={user} onNavigate={navigate} />}
+        {page === "venue-scan" && <VenueScannerPage venueId={pageData.venueId} user={user} onNavigate={navigate} />}
+        {page === "my-tickets" && <MyTicketsPage user={user} onNavigate={navigate} />}
 
         <BottomTabBar user={user} currentPage={page} onNavigate={navigate} />
       </div>
