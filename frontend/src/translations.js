@@ -395,6 +395,10 @@ export const translations = {
     "scanner.alreadyCheckedIn": "Allerede innsjekket",
     "scanner.invalidTicket": "Ugyldig billett",
     "scanner.notStaff": "Du har ikke tilgang til denne skanneren",
+    "scanner.cameraPermission": "Kameratilgang ble avslatt. Gi tilgang i nettleserinnstillingene.",
+    "scanner.noCamera": "Fant ingen kamera pa denne enheten.",
+    "scanner.cameraError": "Kunne ikke starte kameraet. Prov igjen.",
+    "scanner.cameraHint": "Sjekk at nettleseren har tilgang til kameraet i innstillingene.",
 
     // Booking notifications
     "notif.booking_confirmed": "Booking bekreftet",
@@ -811,6 +815,10 @@ export const translations = {
     "scanner.alreadyCheckedIn": "Already checked in",
     "scanner.invalidTicket": "Invalid ticket",
     "scanner.notStaff": "You do not have access to this scanner",
+    "scanner.cameraPermission": "Camera access was denied. Allow access in your browser settings.",
+    "scanner.noCamera": "No camera found on this device.",
+    "scanner.cameraError": "Could not start the camera. Try again.",
+    "scanner.cameraHint": "Check that your browser has permission to use the camera in settings.",
 
     // Booking notifications
     "notif.booking_confirmed": "Booking confirmed",

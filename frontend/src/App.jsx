@@ -595,54 +595,9 @@ function NotificationPreferences({ user }) {
 
 function BottomTabBar({ user, currentPage, onNavigate }) {
   const { t } = useI18n();
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const bellRef = useRef(null);
-
-  const loadNotifications = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("notifications")
-      .select("*, actor:profiles!actor_id(name)")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    setNotifications(data || []);
-    setUnreadCount((data || []).filter((n) => !n.is_read).length);
-  }, [user]);
-
-  useEffect(() => { loadNotifications(); }, [loadNotifications]);
-
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel("bottomtab-notifications")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        () => { loadNotifications(); }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [user, loadNotifications]);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!notifOpen) return;
-    const handler = (e) => {
-      if (bellRef.current && !bellRef.current.contains(e.target)) setNotifOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [notifOpen]);
 
   const isActive = (tabPage) => currentPage === tabPage;
-
-  const handleNav = (page) => {
-    setNotifOpen(false);
-    onNavigate(page);
-  };
+  const handleNav = (page) => onNavigate(page);
 
   return (
     <div className="bottom-tab-bar">
@@ -655,6 +610,28 @@ function BottomTabBar({ user, currentPage, onNavigate }) {
         <span>{t("nav.events")}</span>
       </button>
 
+      {/* Venues */}
+      <button className={`bottom-tab ${isActive("venues") ? "active" : ""}`} onClick={() => handleNav("venues")}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 21h18"/>
+          <path d="M5 21V7l8-4v18"/>
+          <path d="M19 21V11l-6-4"/>
+          <path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/>
+        </svg>
+        <span>{t("nav.venues")}</span>
+      </button>
+
+      {/* My Tickets — only if logged in */}
+      {user && (
+        <button className={`bottom-tab ${isActive("my-tickets") ? "active" : ""}`} onClick={() => handleNav("my-tickets")}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/>
+            <path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>
+          </svg>
+          <span>{t("nav.myTickets")}</span>
+        </button>
+      )}
+
       {/* Discover */}
       <button className={`bottom-tab ${isActive("discover") ? "active" : ""}`} onClick={() => handleNav("discover")}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -663,44 +640,6 @@ function BottomTabBar({ user, currentPage, onNavigate }) {
         </svg>
         <span>{t("nav.discover")}</span>
       </button>
-
-      {/* + New */}
-      <button className={`bottom-tab ${isActive("create-event") ? "active" : ""}`} onClick={() => handleNav(user ? "create-event" : "login")}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="16"/>
-          <line x1="8" y1="12" x2="16" y2="12"/>
-        </svg>
-        <span>{t("nav.newEvent").replace("+ ", "")}</span>
-      </button>
-
-      {/* Notifications — only if logged in */}
-      {user && (
-        <div className="bottom-tab-wrapper" ref={bellRef}>
-          <button className={`bottom-tab ${notifOpen ? "active" : ""}`} onClick={() => setNotifOpen(!notifOpen)}>
-            <div className="bottom-tab-icon-wrapper">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              </svg>
-              {unreadCount > 0 && <span className="bottom-tab-badge">{unreadCount}</span>}
-            </div>
-            <span>{t("nav.notifications")}</span>
-          </button>
-          {notifOpen && (
-            <NotificationDropdown
-              notifications={notifications}
-              unreadCount={unreadCount}
-              onNavigate={(p, d) => { setNotifOpen(false); onNavigate(p, d); }}
-              onMarkAllRead={async () => {
-                await supabase.rpc("mark_all_notifications_read");
-                loadNotifications();
-              }}
-              onRefresh={loadNotifications}
-            />
-          )}
-        </div>
-      )}
 
       {/* Profile */}
       <button className={`bottom-tab ${isActive("profile") ? "active" : ""}`} onClick={() => handleNav(user ? "profile" : "login")}>
@@ -839,8 +778,9 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
         <LanguagePicker />
       </div>
 
-      {/* Mobile: just language picker (bottom tab bar handles navigation) */}
+      {/* Mobile: notification bell + language picker */}
       <div className="navbar-mobile-actions">
+        {user && <NotificationBell user={user} onNavigate={(p, d) => nav(p, d)} />}
         <LanguagePicker />
       </div>
     </nav>
@@ -3900,6 +3840,7 @@ function VenueScannerPage({ venueId, user, onNavigate }) {
   const [scanning, setScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [checkinDone, setCheckinDone] = useState(false);
+  const [scannerError, setScannerError] = useState(null);
   const scannerRef = useRef(null);
   const html5QrRef = useRef(null);
 
@@ -3927,6 +3868,7 @@ function VenueScannerPage({ venueId, user, onNavigate }) {
     if (!scannerRef.current) return;
     setScanResult(null);
     setCheckinDone(false);
+    setScannerError(null);
     const html5Qr = new Html5Qrcode(scannerRef.current.id);
     html5QrRef.current = html5Qr;
     try {
@@ -3939,6 +3881,14 @@ function VenueScannerPage({ venueId, user, onNavigate }) {
       setScanning(true);
     } catch (err) {
       console.error("Scanner error:", err);
+      html5QrRef.current = null;
+      if (err?.toString().includes("NotAllowedError") || err?.toString().includes("Permission")) {
+        setScannerError(t("scanner.cameraPermission"));
+      } else if (err?.toString().includes("NotFoundError") || err?.toString().includes("no camera")) {
+        setScannerError(t("scanner.noCamera"));
+      } else {
+        setScannerError(t("scanner.cameraError"));
+      }
     }
   };
 
@@ -3974,6 +3924,13 @@ function VenueScannerPage({ venueId, user, onNavigate }) {
       <h1>{t("scanner.title")}</h1>
 
       <div ref={scannerRef} id="venue-qr-reader" style={{ marginBottom: 16 }} />
+
+      {scannerError && (
+        <div className="scan-result-card invalid" style={{ marginBottom: 16 }}>
+          <div className="scan-result-status error">{scannerError}</div>
+          <p style={{ marginTop: 8, fontSize: 14, opacity: 0.8 }}>{t("scanner.cameraHint")}</p>
+        </div>
+      )}
 
       {!scanning ? (
         <button className="btn btn-primary" onClick={startScanning}>{t("scanner.scan")}</button>
