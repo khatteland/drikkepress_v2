@@ -78,6 +78,95 @@ async function geocodeAddress(address, lang) {
 }
 
 // ============================================================
+// TIMESLOT GENERATOR HELPER
+// ============================================================
+
+function generateSlots(from, to, durationMin) {
+  const slots = [];
+  if (!from || !to || !durationMin) return slots;
+  let [h, m] = from.split(":").map(Number);
+  const [endH, endM] = to.split(":").map(Number);
+  const endMinutes = endH * 60 + endM;
+  while (h * 60 + m + durationMin <= endMinutes) {
+    const startStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    m += durationMin;
+    if (m >= 60) { h += Math.floor(m / 60); m = m % 60; }
+    const endStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    slots.push({ start: startStr, end: endStr });
+  }
+  return slots;
+}
+
+// ============================================================
+// ADDRESS AUTOCOMPLETE COMPONENT
+// ============================================================
+
+function AddressAutocomplete({ value, onChange, onSelect, placeholder, lang }) {
+  const [suggestions, setSuggestions] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const timerRef = useRef(null);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleChange = (e) => {
+    const val = e.target.value;
+    onChange(val);
+    clearTimeout(timerRef.current);
+    if (val.length < 3) { setSuggestions([]); setShowDropdown(false); return; }
+    timerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5`,
+          { headers: { "Accept-Language": lang === "no" ? "nb" : "en" } }
+        );
+        const data = await res.json();
+        setSuggestions(data || []);
+        setShowDropdown(true);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 300);
+  };
+
+  const handleSelect = (item) => {
+    onChange(item.display_name);
+    onSelect({ lat: parseFloat(item.lat), lng: parseFloat(item.lon), display_name: item.display_name });
+    setShowDropdown(false);
+    setSuggestions([]);
+  };
+
+  return (
+    <div className="address-autocomplete" ref={wrapperRef}>
+      <input
+        type="text"
+        value={value}
+        onChange={handleChange}
+        placeholder={placeholder}
+        onFocus={() => { if (suggestions.length > 0) setShowDropdown(true); }}
+      />
+      {showDropdown && suggestions.length > 0 && (
+        <div className="address-suggestions">
+          {suggestions.map((item, i) => (
+            <div key={i} className="address-suggestion-item" onClick={() => handleSelect(item)}>
+              {item.display_name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // CALENDAR HELPERS
 // ============================================================
 
@@ -3234,6 +3323,7 @@ function VenueRegisterPage({ user, onNavigate }) {
     name: "", description: "", address: "", opening_hours: "",
     contact_email: "", contact_phone: "",
   });
+  const [geo, setGeo] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -3255,13 +3345,14 @@ function VenueRegisterPage({ user, onNavigate }) {
       } catch (err) { setError(err.message); setSubmitting(false); return; }
     }
 
-    const geo = await geocodeAddress(form.address, lang);
+    // Use geo from autocomplete selection, or fall back to geocoding
+    const resolvedGeo = geo || await geocodeAddress(form.address, lang);
 
     const { data, error: err } = await supabase.from("venues").insert({
       name: form.name, description: form.description, address: form.address,
       opening_hours: form.opening_hours, contact_email: form.contact_email,
       contact_phone: form.contact_phone, image_url,
-      latitude: geo ? geo.lat : null, longitude: geo ? geo.lng : null,
+      latitude: resolvedGeo ? resolvedGeo.lat : null, longitude: resolvedGeo ? resolvedGeo.lng : null,
       owner_id: user.id,
     }).select().single();
 
@@ -3290,7 +3381,13 @@ function VenueRegisterPage({ user, onNavigate }) {
         </div>
         <div className="form-group">
           <label>{t("venue.address")} *</label>
-          <input type="text" value={form.address} onChange={update("address")} placeholder={t("form.addressPlaceholder")} />
+          <AddressAutocomplete
+            value={form.address}
+            onChange={(val) => { setForm({ ...form, address: val }); setGeo(null); }}
+            onSelect={(g) => { setGeo(g); }}
+            placeholder={t("address.placeholder")}
+            lang={lang}
+          />
         </div>
         <div className="form-group">
           <label>{t("venue.openingHours")}</label>
@@ -3327,7 +3424,8 @@ function VenueManagePage({ venueId, user, onNavigate }) {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tsForm, setTsForm] = useState({
-    date: "", start_time: "", end_time: "", price: "", capacity: "10", description: "",
+    date: "", from_time: "", to_time: "",
+    slot_duration: "15", price: "", capacity: "10", description: "",
   });
   const [tsSubmitting, setTsSubmitting] = useState(false);
   const [staffEmail, setStaffEmail] = useState("");
@@ -3350,20 +3448,24 @@ function VenueManagePage({ venueId, user, onNavigate }) {
 
   const formatPrice = (ore) => ore === 0 ? "Gratis" : `${(ore / 100).toFixed(0)} kr`;
 
+  const previewSlots = generateSlots(tsForm.from_time, tsForm.to_time, parseInt(tsForm.slot_duration) || 15);
+
   const handleCreateTimeslot = async (e) => {
     e.preventDefault();
-    if (!tsForm.date || !tsForm.start_time || !tsForm.end_time) return;
+    if (!tsForm.date || !tsForm.from_time || !tsForm.to_time || previewSlots.length === 0) return;
     setTsSubmitting(true);
-    await supabase.from("timeslots").insert({
+    const priceOre = Math.round((parseFloat(tsForm.price) || 0) * 100);
+    const rows = previewSlots.map((slot) => ({
       venue_id: venueId,
       date: tsForm.date,
-      start_time: tsForm.start_time,
-      end_time: tsForm.end_time,
-      price: parseInt(tsForm.price) || 0,
+      start_time: slot.start,
+      end_time: slot.end,
+      price: priceOre,
       capacity: parseInt(tsForm.capacity) || 10,
       description: tsForm.description,
-    });
-    setTsForm({ date: "", start_time: "", end_time: "", price: "", capacity: "10", description: "" });
+    }));
+    await supabase.from("timeslots").insert(rows);
+    setTsForm({ date: "", from_time: "", to_time: "", slot_duration: "15", price: "", capacity: "10", description: "" });
     setTsSubmitting(false);
     loadDashboard();
   };
@@ -3424,24 +3526,54 @@ function VenueManagePage({ venueId, user, onNavigate }) {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label>{t("timeslot.startTime")} *</label>
-              <input type="time" value={tsForm.start_time} onChange={(e) => setTsForm({ ...tsForm, start_time: e.target.value })} />
+              <label>{t("timeslot.fromTime")} *</label>
+              <input type="time" value={tsForm.from_time} onChange={(e) => setTsForm({ ...tsForm, from_time: e.target.value })} />
             </div>
             <div className="form-group">
-              <label>{t("timeslot.endTime")} *</label>
-              <input type="time" value={tsForm.end_time} onChange={(e) => setTsForm({ ...tsForm, end_time: e.target.value })} />
+              <label>{t("timeslot.toTime")} *</label>
+              <input type="time" value={tsForm.to_time} onChange={(e) => setTsForm({ ...tsForm, to_time: e.target.value })} />
             </div>
           </div>
-          <div className="form-group">
-            <label>{t("timeslot.price")} (øre, f.eks. 19900 = 199 kr)</label>
-            <input type="number" value={tsForm.price} onChange={(e) => setTsForm({ ...tsForm, price: e.target.value })} placeholder="0" />
+          <div className="form-row">
+            <div className="form-group">
+              <label>{t("timeslot.slotDuration")}</label>
+              <select value={tsForm.slot_duration} onChange={(e) => setTsForm({ ...tsForm, slot_duration: e.target.value })}>
+                <option value="15">15 {t("timeslot.minutes")}</option>
+                <option value="30">30 {t("timeslot.minutes")}</option>
+                <option value="45">45 {t("timeslot.minutes")}</option>
+                <option value="60">60 {t("timeslot.minutes")}</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>{t("timeslot.priceKr")}</label>
+              <input type="number" value={tsForm.price} onChange={(e) => setTsForm({ ...tsForm, price: e.target.value })} placeholder="0" step="1" min="0" />
+            </div>
           </div>
           <div className="form-group">
             <label>{t("timeslot.description")}</label>
             <input type="text" value={tsForm.description} onChange={(e) => setTsForm({ ...tsForm, description: e.target.value })} />
           </div>
-          <button className="btn btn-primary" type="submit" disabled={tsSubmitting}>
-            {tsSubmitting ? t("loading") : t("timeslot.create")}
+
+          <div className="form-group">
+            <label>{t("timeslot.preview")}</label>
+            {previewSlots.length > 0 ? (
+              <>
+                <div className="slot-preview">
+                  {previewSlots.map((slot, i) => (
+                    <div key={i} className="slot-preview-item">{slot.start}–{slot.end}</div>
+                  ))}
+                </div>
+                <div className="slot-preview-count">
+                  {t("timeslot.generateCount").replace("{n}", previewSlots.length)}
+                </div>
+              </>
+            ) : (
+              <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>{t("timeslot.noSlots")}</p>
+            )}
+          </div>
+
+          <button className="btn btn-primary" type="submit" disabled={tsSubmitting || previewSlots.length === 0}>
+            {tsSubmitting ? t("loading") : t("timeslot.generateCount").replace("{n}", previewSlots.length)}
           </button>
         </form>
       </div>

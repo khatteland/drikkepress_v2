@@ -348,6 +348,16 @@ export const translations = {
     "timeslot.description": "Beskrivelse",
     "timeslot.active": "Aktiv",
     "timeslot.deactivate": "Deaktiver",
+    "timeslot.fromTime": "Fra",
+    "timeslot.toTime": "Til",
+    "timeslot.slotDuration": "Varighet per slot",
+    "timeslot.minutes": "min",
+    "timeslot.preview": "Forh\u00e5ndsvisning",
+    "timeslot.generateCount": "Opprett {n} timeslots",
+    "timeslot.priceKr": "Pris (kr)",
+    "timeslot.noSlots": "Velg tid og varighet for \u00e5 se slots",
+    "address.placeholder": "Begynn \u00e5 skrive adresse...",
+    "address.noResults": "Ingen resultater",
 
     // Booking
     "booking.buy": "Kj\u00f8p",
@@ -738,6 +748,16 @@ export const translations = {
     "timeslot.description": "Description",
     "timeslot.active": "Active",
     "timeslot.deactivate": "Deactivate",
+    "timeslot.fromTime": "From",
+    "timeslot.toTime": "To",
+    "timeslot.slotDuration": "Duration per slot",
+    "timeslot.minutes": "min",
+    "timeslot.preview": "Preview",
+    "timeslot.generateCount": "Create {n} timeslots",
+    "timeslot.priceKr": "Price (kr)",
+    "timeslot.noSlots": "Select time and duration to see slots",
+    "address.placeholder": "Start typing address...",
+    "address.noResults": "No results",
 
     // Booking
     "booking.buy": "Buy",
