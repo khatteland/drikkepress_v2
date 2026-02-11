@@ -104,89 +104,89 @@ export function TermsPage({ onNavigate }) {
     <div className="container">
       <div className="terms-page">
         <button className="back-button" onClick={() => onNavigate("discover")}>{t("detail.back")}</button>
-        <h1>Salgsvilk\u00e5r</h1>
+        <h1>Salgsvilkår</h1>
         <p className="terms-updated">Sist oppdatert: Februar 2026</p>
 
         <h2>1. Parter</h2>
         <p>
-          Disse vilk\u00e5rene gjelder for billettkj\u00f8p gjennom Hapn, drevet av
+          Disse vilkårene gjelder for billettkjøp gjennom Hapn, drevet av
           <strong> Hatteland AS</strong>, org.nr. 928 256 545, Herslebs gate 17 B, 0561 Oslo.
           E-post: kristian.hatteland@gmail.com.
         </p>
         <p>
-          Kj\u00f8per er den personen som legger inn bestillingen. Kj\u00f8per m\u00e5 v\u00e6re minst 18 \u00e5r,
+          Kjøper er den personen som legger inn bestillingen. Kjøper må være minst 18 år,
           eller ha samtykke fra foresatte der det er relevant.
         </p>
 
         <h2>2. Betaling</h2>
         <p>
-          Betaling gjennomf\u00f8res sikkert via Vipps MobilePay. Totalbel\u00f8pet, inkludert eventuelle gebyrer,
-          vises f\u00f8r kj\u00f8psbekreftelse. Betaling trekkes umiddelbart ved bekreftelse.
+          Betaling gjennomføres sikkert via Vipps MobilePay. Totalbeløpet, inkludert eventuelle gebyrer,
+          vises før kjøpsbekreftelse. Betaling trekkes umiddelbart ved bekreftelse.
           For gratisarrangementer kreves ingen betaling.
         </p>
 
         <h2>3. Levering</h2>
         <p>
           Billetter leveres digitalt via Hapn-plattformen umiddelbart etter bekreftet betaling.
-          En QR-kodebillett vises p\u00e5 kontoen din under \u00abMine billetter\u00bb og kan presenteres
-          p\u00e5 utestedet for innsjekking.
+          En QR-kodebillett vises på kontoen din under «Mine billetter» og kan presenteres
+          på utestedet for innsjekking.
         </p>
 
         <h2>4. Angrerett</h2>
         <p>
-          I henhold til Angrerettloven \u00a7 22 gjelder ikke angreretten for billetter til arrangementer,
-          forestillinger eller lignende aktiviteter p\u00e5 et bestemt tidspunkt eller innenfor en bestemt periode.
-          Dette betyr at kj\u00f8pte billetter ikke kan returneres med hjemmel i angreretten.
+          I henhold til Angrerettloven § 22 gjelder ikke angreretten for billetter til arrangementer,
+          forestillinger eller lignende aktiviteter på et bestemt tidspunkt eller innenfor en bestemt periode.
+          Dette betyr at kjøpte billetter ikke kan returneres med hjemmel i angreretten.
         </p>
 
         <h2>5. Avbestilling og endring</h2>
         <p>
-          Billetter kan kanselleres via \u00abMine billetter\u00bb p\u00e5 Hapn-plattformen f\u00f8r arrangementet starter.
+          Billetter kan kanselleres via «Mine billetter» på Hapn-plattformen før arrangementet starter.
           For betalte billetter vil refusjon bli utstedt via Vipps til opprinnelig betalingsmetode.
-          Refusjoner behandles innen 5\u201310 virkedager. Arrang\u00f8ren eller utestedet kan sette
-          spesifikke avbestillingsregler som gjelder i tillegg til disse vilk\u00e5rene.
+          Refusjoner behandles innen 5–10 virkedager. Arrangøren eller utestedet kan sette
+          spesifikke avbestillingsregler som gjelder i tillegg til disse vilkårene.
         </p>
         <p>
-          Dersom et arrangement avlyses av arrang\u00f8ren, vil alle billettinnehavere f\u00e5 full refusjon automatisk.
+          Dersom et arrangement avlyses av arrangøren, vil alle billettinnehavere få full refusjon automatisk.
         </p>
 
         <h2>6. Retur</h2>
         <p>
           Ettersom billetter er digitale produkter for tidsbestemte arrangementer, gjelder ikke fysisk retur.
-          Se punkt 5 for avbestilling og refusjonsvilk\u00e5r.
+          Se punkt 5 for avbestilling og refusjonsvilkår.
         </p>
 
         <h2>7. Reklamasjon</h2>
         <p>
           Dersom du opplever problemer med billetten din, eller arrangementet ikke samsvarer med beskrivelsen,
-          ta kontakt med oss p\u00e5 <a href="mailto:kristian.hatteland@gmail.com">kristian.hatteland@gmail.com</a>.
-          Reklamasjoner b\u00f8r sendes s\u00e5 snart som mulig og senest innen rimelig tid etter at du oppdaget
+          ta kontakt med oss på <a href="mailto:kristian.hatteland@gmail.com">kristian.hatteland@gmail.com</a>.
+          Reklamasjoner bør sendes så snart som mulig og senest innen rimelig tid etter at du oppdaget
           eller burde ha oppdaget mangelen. Vi svarer innen 14 dager.
         </p>
 
-        <h2>8. Konfliktl\u00f8sning</h2>
+        <h2>8. Konfliktløsning</h2>
         <p>
-          Tvister skal f\u00f8rst fors\u00f8kes l\u00f8st gjennom dialog mellom partene.
-          Dersom enighet ikke oppn\u00e5s, kan saken bringes inn for Forbrukerr\u00e5det
+          Tvister skal først forsøkes løst gjennom dialog mellom partene.
+          Dersom enighet ikke oppnås, kan saken bringes inn for Forbrukerrådet
           eller Forbrukerklageutvalget.
           Se <a href="https://www.forbrukerradet.no" target="_blank" rel="noopener noreferrer">forbrukerradet.no</a> for
           mer informasjon. EU-kommisjonens klageportal finner du
-          p\u00e5 <a href="https://ec.europa.eu/odr" target="_blank" rel="noopener noreferrer">ec.europa.eu/odr</a>.
+          på <a href="https://ec.europa.eu/odr" target="_blank" rel="noopener noreferrer">ec.europa.eu/odr</a>.
         </p>
 
         <h2>9. Aldersgrenser</h2>
         <p>
           Noen arrangementer og utesteder har aldersgrenser. Din alder verifiseres gjennom Vipps-innlogging.
-          Dersom du ikke oppfyller alderskravet, vil du ikke kunne kj\u00f8pe billetter til
+          Dersom du ikke oppfyller alderskravet, vil du ikke kunne kjøpe billetter til
           det aktuelle arrangementet eller utestedet.
         </p>
 
         <h2>10. Personvern</h2>
         <p>
-          Vi samler inn og behandler personopplysninger som er n\u00f8dvendig for \u00e5 gjennomf\u00f8re billettkj\u00f8p
-          og levere v\u00e5re tjenester. Data fra Vipps-innlogging (navn, e-post, telefonnummer, f\u00f8dselsdato)
+          Vi samler inn og behandler personopplysninger som er nødvendig for å gjennomføre billettkjøp
+          og levere våre tjenester. Data fra Vipps-innlogging (navn, e-post, telefonnummer, fødselsdato)
           lagres sikkert og brukes kun til kontoadministrasjon, aldersverifisering og ordrebehandling.
-          Vi deler ikke personopplysninger med tredjeparter utover det som er n\u00f8dvendig for betalingsformidling.
+          Vi deler ikke personopplysninger med tredjeparter utover det som er nødvendig for betalingsformidling.
         </p>
       </div>
     </div>
