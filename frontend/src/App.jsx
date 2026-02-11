@@ -180,12 +180,23 @@ function generateGoogleCalendarUrl(event) {
     const h = parseInt(startTime.slice(0, 2)) + 2;
     endTime = String(h).padStart(2, "0") + startTime.slice(2);
   }
-  const dates = `${startDate}T${startTime}/${startDate}T${endTime}`;
+  // Compute the end date: use end_date, or check for over-midnight
+  let endDateStr = startDate;
+  if (event.end_date) {
+    endDateStr = event.end_date.replace(/-/g, "");
+  } else if (event.end_time && event.end_time < event.time) {
+    // Over midnight: end date is next day
+    const d = new Date(event.date + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    endDateStr = d.toISOString().slice(0, 10).replace(/-/g, "");
+  }
+  const dates = `${startDate}T${startTime}/${endDateStr}T${endTime}`;
+  const location = event.event_mode === "online" ? (event.online_url || "") : (event.location || "");
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: event.title,
     dates,
-    location: event.location || "",
+    location,
     details: event.description || "",
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
@@ -201,6 +212,16 @@ function generateIcsFile(event) {
     const h = parseInt(startTime.slice(0, 2)) + 2;
     endTime = String(h).padStart(2, "0") + startTime.slice(2);
   }
+  // Compute the end date: use end_date, or check for over-midnight
+  let endDateStr = startDate;
+  if (event.end_date) {
+    endDateStr = event.end_date.replace(/-/g, "");
+  } else if (event.end_time && event.end_time < event.time) {
+    const d = new Date(event.date + "T00:00:00");
+    d.setDate(d.getDate() + 1);
+    endDateStr = d.toISOString().slice(0, 10).replace(/-/g, "");
+  }
+  const location = event.event_mode === "online" ? (event.online_url || "") : (event.location || "");
   const uid = `${event.id}-${startDate}@hapn`;
   const ics = [
     "BEGIN:VCALENDAR",
@@ -209,9 +230,9 @@ function generateIcsFile(event) {
     "BEGIN:VEVENT",
     `UID:${uid}`,
     `DTSTART:${startDate}T${startTime}`,
-    `DTEND:${startDate}T${endTime}`,
+    `DTEND:${endDateStr}T${endTime}`,
     `SUMMARY:${event.title}`,
-    `LOCATION:${event.location || ""}`,
+    `LOCATION:${location}`,
     `DESCRIPTION:${(event.description || "").replace(/\n/g, "\\n")}`,
     "END:VEVENT",
     "END:VCALENDAR",
@@ -779,15 +800,35 @@ function EventCard({ event, onClick }) {
   const friendCount = event.friend_count || 0;
   const otherCount = Math.max(0, (event.going_count || 0) - friendCount);
   const friendAvatars = event.friend_preview || [];
+  const isMultiDay = event.end_date && event.end_date !== event.date;
+  const isOverMidnight = !event.end_date && event.end_time && event.time && event.end_time < event.time;
 
   return (
     <div className="event-card" onClick={onClick}>
       {event.image_url && <img className="event-card-image" src={event.image_url} alt={event.title} />}
       <div className="event-card-body">
-        <div className="event-card-title">{event.title}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
+          <span className="event-card-title" style={{ marginBottom: 0 }}>{event.title}</span>
+          {event.event_mode === "online" && <span className="event-mode-badge online">{t("events.online")}</span>}
+          {event.event_mode === "hybrid" && <span className="event-mode-badge hybrid">{t("events.hybrid")}</span>}
+        </div>
         <div className="event-card-meta">
-          <span>{formatDate(event.date, lang)}</span>
-          <span>{event.time?.slice(0, 5)}{event.end_time ? ` – ${event.end_time.slice(0, 5)}` : ""} · {event.location}</span>
+          <span>
+            {isMultiDay
+              ? <span className="event-date-range">{formatShortDate(event.date, lang)} – {formatShortDate(event.end_date, lang)}</span>
+              : formatDate(event.date, lang)
+            }
+          </span>
+          <span>
+            {event.time?.slice(0, 5)}{event.end_time ? ` – ${event.end_time.slice(0, 5)}` : ""}
+            {isOverMidnight && <span className="event-mode-badge next-day">{t("events.endsNextDay")}</span>}
+            {event.event_mode === "online"
+              ? <> · {t("events.online")}</>
+              : event.event_mode === "hybrid"
+                ? <> · {event.location} · {t("events.online")}</>
+                : event.location ? <> · {event.location}</> : ""
+            }
+          </span>
         </div>
         <div className="event-card-footer">
           {friendCount > 0 ? (
@@ -851,7 +892,7 @@ function SearchBrowsePage({ user, onNavigate, initialView }) {
       .from("events")
       .select("*, creator:profiles!creator_id(name), rsvps(status, user_id)")
       .eq("visibility", "public")
-      .gte("date", today)
+      .gte("effective_end_date", today)
       .order("date", { ascending: true });
 
     if (search) {
@@ -1653,15 +1694,36 @@ function EventDetailPage({ eventId, user, onNavigate }) {
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span className="event-detail-category">{t(`cat.${event.category}`)}</span>
             {event.visibility === "semi_public" && <span className="visibility-badge semi-public">{t("restricted.badge")}</span>}
+            {event.event_mode === "online" && <span className="event-mode-badge online">{t("events.online")}</span>}
+            {event.event_mode === "hybrid" && <span className="event-mode-badge hybrid">{t("events.hybrid")}</span>}
           </div>
           <h1 className="event-detail-title">{event.title}</h1>
           <div className="event-detail-meta">
-            <span>{formatDate(event.date, lang)}</span>
-            <span>{event.time?.slice(0, 5)}{event.end_time ? ` – ${event.end_time.slice(0, 5)}` : ""}</span>
-            {event.location_hidden ? (
-              <span style={{ color: "#d97706" }}>📍 {event.area_name} — <em>{t("discover.addressHidden")}</em></span>
-            ) : (
-              <span>{event.location}</span>
+            <span>
+              {event.end_date && event.end_date !== event.date
+                ? <span className="event-date-range">{formatShortDate(event.date, lang)} – {formatShortDate(event.end_date, lang)}</span>
+                : formatDate(event.date, lang)
+              }
+            </span>
+            <span>
+              {event.time?.slice(0, 5)}{event.end_time ? ` – ${event.end_time.slice(0, 5)}` : ""}
+              {!event.end_date && event.end_time && event.time && event.end_time < event.time && (
+                <span className="event-mode-badge next-day">{t("events.endsNextDay")}</span>
+              )}
+            </span>
+            {event.event_mode !== "online" && (
+              event.location_hidden ? (
+                <span style={{ color: "#d97706" }}>📍 {event.area_name} — <em>{t("discover.addressHidden")}</em></span>
+              ) : event.location ? (
+                <span>{event.location}</span>
+              ) : null
+            )}
+            {event.event_mode !== "physical" && event.online_url && (
+              <span>
+                <a href={event.online_url} target="_blank" rel="noopener noreferrer" className="online-link" onClick={(e) => e.stopPropagation()}>
+                  {t("events.online")} ↗
+                </a>
+              </span>
             )}
           </div>
         </div>
@@ -1952,7 +2014,7 @@ function DiscoverPage({ user, onNavigate }) {
     } else if (locationDenied) {
       // Fallback: fetch events without location, compute friends client-side
       const today = new Date().toISOString().split("T")[0];
-      let q = supabase.from("events").select("id, title, date, time, location, category, image_url, rsvps(status, user_id)").eq("visibility", "public").gte("date", today).order("date").limit(20);
+      let q = supabase.from("events").select("id, title, date, end_date, time, end_time, location, category, image_url, event_mode, online_url, rsvps(status, user_id)").eq("visibility", "public").gte("effective_end_date", today).order("date").limit(20);
       if (category) q = q.eq("category", category);
       q.then(async ({ data }) => {
         const evts = data || [];
@@ -2081,34 +2143,50 @@ function DiscoverPage({ user, onNavigate }) {
     );
   };
 
-  const renderCard = (card, className, ref) => (
-    <div className={`discover-card ${className}`} ref={ref} key={card.id}>
-      {card.image_url ? (
-        <img className="discover-card-image" src={card.image_url} alt="" draggable="false" />
-      ) : (
-        <div className="discover-card-image-placeholder">
-          {t(`cat.${card.category}`)?.[0] || "?"}
+  const renderCard = (card, className, ref) => {
+    const cardIsMultiDay = card.end_date && card.end_date !== card.date;
+    const cardIsOverMidnight = !card.end_date && card.end_time && card.time && card.end_time < card.time;
+    return (
+      <div className={`discover-card ${className}`} ref={ref} key={card.id}>
+        {card.image_url ? (
+          <img className="discover-card-image" src={card.image_url} alt="" draggable="false" />
+        ) : (
+          <div className="discover-card-image-placeholder">
+            {t(`cat.${card.category}`)?.[0] || "?"}
+          </div>
+        )}
+        <div className="discover-card-body">
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span className="event-card-category">{t(`cat.${card.category}`)}</span>
+            {card.event_mode === "online" && <span className="event-mode-badge online">{t("events.online")}</span>}
+            {card.event_mode === "hybrid" && <span className="event-mode-badge hybrid">{t("events.hybrid")}</span>}
+            {card.join_mode === "approval_required" && (
+              <span className="discover-approval-badge">{t("discover.approvalRequired")}</span>
+            )}
+            {card.distance_km != null && (
+              <span className="discover-card-distance">{card.distance_km} {t("discover.km")}</span>
+            )}
+          </div>
+          <div className="discover-card-title">{card.title}</div>
+          <div className="discover-card-meta">
+            <span>
+              {cardIsMultiDay
+                ? <span className="event-date-range">{formatShortDate(card.date, lang)} – {formatShortDate(card.end_date, lang)}</span>
+                : formatDate(card.date, lang)
+              }
+            </span>
+            <span>
+              {card.time?.slice(0, 5)}
+              {card.end_time ? ` – ${card.end_time.slice(0, 5)}` : ""}
+              {cardIsOverMidnight && <span className="event-mode-badge next-day">{t("events.endsNextDay")}</span>}
+              {card.area_name ? ` · ${card.area_name}` : card.event_mode === "online" ? ` · ${t("events.online")}` : ""}
+            </span>
+          </div>
+          {renderCardFooter(card)}
         </div>
-      )}
-      <div className="discover-card-body">
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <span className="event-card-category">{t(`cat.${card.category}`)}</span>
-          {card.join_mode === "approval_required" && (
-            <span className="discover-approval-badge">{t("discover.approvalRequired")}</span>
-          )}
-          {card.distance_km != null && (
-            <span className="discover-card-distance">{card.distance_km} {t("discover.km")}</span>
-          )}
-        </div>
-        <div className="discover-card-title">{card.title}</div>
-        <div className="discover-card-meta">
-          <span>{formatDate(card.date, lang)}</span>
-          <span>{card.time?.slice(0, 5)} · {card.area_name}</span>
-        </div>
-        {renderCardFooter(card)}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="discover-page">
@@ -2191,6 +2269,8 @@ function DiscoverPage({ user, onNavigate }) {
               <div className="discover-card-body">
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <span className="event-card-category">{t(`cat.${currentCard.category}`)}</span>
+                  {currentCard.event_mode === "online" && <span className="event-mode-badge online">{t("events.online")}</span>}
+                  {currentCard.event_mode === "hybrid" && <span className="event-mode-badge hybrid">{t("events.hybrid")}</span>}
                   {currentCard.join_mode === "approval_required" && (
                     <span className="discover-approval-badge">{t("discover.approvalRequired")}</span>
                   )}
@@ -2200,8 +2280,20 @@ function DiscoverPage({ user, onNavigate }) {
                 </div>
                 <div className="discover-card-title">{currentCard.title}</div>
                 <div className="discover-card-meta">
-                  <span>{formatDate(currentCard.date, lang)}</span>
-                  <span>{currentCard.time?.slice(0, 5)} · {currentCard.area_name}</span>
+                  <span>
+                    {currentCard.end_date && currentCard.end_date !== currentCard.date
+                      ? <span className="event-date-range">{formatShortDate(currentCard.date, lang)} – {formatShortDate(currentCard.end_date, lang)}</span>
+                      : formatDate(currentCard.date, lang)
+                    }
+                  </span>
+                  <span>
+                    {currentCard.time?.slice(0, 5)}
+                    {currentCard.end_time ? ` – ${currentCard.end_time.slice(0, 5)}` : ""}
+                    {!currentCard.end_date && currentCard.end_time && currentCard.time && currentCard.end_time < currentCard.time && (
+                      <span className="event-mode-badge next-day">{t("events.endsNextDay")}</span>
+                    )}
+                    {currentCard.area_name ? ` · ${currentCard.area_name}` : currentCard.event_mode === "online" ? ` · ${t("events.online")}` : ""}
+                  </span>
                 </div>
                 {renderCardFooter(currentCard)}
               </div>
@@ -2242,6 +2334,7 @@ function EventFormPage({ eventId, user, onNavigate }) {
     title: "", description: "", date: "", time: "", end_time: "",
     location: "", category: "Technology", visibility: "public",
     join_mode: "open", max_attendees: "", venue_id: "",
+    event_mode: "physical", end_date: "", online_url: "",
   });
   const [images, setImages] = useState([]);
   const [error, setError] = useState("");
@@ -2265,10 +2358,13 @@ function EventFormPage({ eventId, user, onNavigate }) {
           setForm({
             title: data.title, description: data.description || "", date: data.date,
             time: data.time?.slice(0, 5) || "", end_time: data.end_time?.slice(0, 5) || "",
-            location: data.location, category: data.category,
+            location: data.location || "", category: data.category,
             visibility: data.visibility || "public",
             join_mode: data.join_mode || "open",
             max_attendees: data.max_attendees != null ? String(data.max_attendees) : "",
+            event_mode: data.event_mode || "physical",
+            end_date: data.end_date || "",
+            online_url: data.online_url || "",
           });
           if (data.images && data.images.length > 0) {
             setImages(data.images.map((img) => img.image_url));
@@ -2285,22 +2381,36 @@ function EventFormPage({ eventId, user, onNavigate }) {
     e.preventDefault();
     setError("");
     setGeocodeError("");
-    if (!form.title || !form.date || !form.time || !form.location || !form.description) {
+    const needsLocation = form.event_mode !== "online";
+    const needsOnlineUrl = form.event_mode !== "physical";
+    if (!form.title || !form.date || !form.time || !form.description) {
+      setError(t("form.required"));
+      return;
+    }
+    if (needsLocation && !form.location) {
+      setError(t("form.required"));
+      return;
+    }
+    if (needsOnlineUrl && !form.online_url) {
       setError(t("form.required"));
       return;
     }
 
     setSubmitting(true);
 
-    // Geocode the address
-    const geo = await geocodeAddress(form.location, lang);
-    if (!geo) {
-      setGeocodeError(t("form.geocodeError"));
+    // Geocode the address (only if location provided)
+    let geo = null;
+    if (form.location) {
+      geo = await geocodeAddress(form.location, lang);
+      if (!geo) {
+        setGeocodeError(t("form.geocodeError"));
+      }
     }
 
     const payload = {
       title: form.title, description: form.description, date: form.date,
-      time: form.time, end_time: form.end_time || null, location: form.location,
+      time: form.time, end_time: form.end_time || null,
+      location: form.location || null,
       image_url: images.length > 0 ? images[0] : null, category: form.category,
       visibility: form.visibility,
       join_mode: form.join_mode,
@@ -2308,6 +2418,9 @@ function EventFormPage({ eventId, user, onNavigate }) {
       longitude: geo ? geo.lng : null,
       max_attendees: parseInt(form.max_attendees) || null,
       venue_id: form.venue_id ? parseInt(form.venue_id) : null,
+      event_mode: form.event_mode,
+      end_date: form.end_date || null,
+      online_url: form.online_url || null,
     };
 
     let targetEventId = eventId;
@@ -2376,11 +2489,32 @@ function EventFormPage({ eventId, user, onNavigate }) {
               </div>
             </div>
             <div className="form-group">
-              <label>{t("form.address")} *</label>
-              <input type="text" value={form.location} onChange={update("location")} placeholder={t("form.addressPlaceholder")} />
-              <small style={{ color: "#888", fontSize: 12, marginTop: 4, display: "block" }}>{t("form.addressHint")}</small>
-              {geocodeError && <small style={{ color: "#ef4444", fontSize: 12, marginTop: 4, display: "block" }}>{geocodeError}</small>}
+              <label>{t("form.endDate")}</label>
+              <input type="date" value={form.end_date} onChange={update("end_date")} min={form.date || undefined} />
+              <small style={{ color: "#888", fontSize: 12, marginTop: 4, display: "block" }}>{t("form.endDateHint")}</small>
             </div>
+            <div className="form-group">
+              <label>{t("form.eventMode")}</label>
+              <select value={form.event_mode} onChange={update("event_mode")}>
+                <option value="physical">{t("form.modePhysical")}</option>
+                <option value="online">{t("form.modeOnline")}</option>
+                <option value="hybrid">{t("form.modeHybrid")}</option>
+              </select>
+            </div>
+            {form.event_mode !== "online" && (
+              <div className="form-group">
+                <label>{t("form.address")} *</label>
+                <input type="text" value={form.location} onChange={update("location")} placeholder={t("form.addressPlaceholder")} />
+                <small style={{ color: "#888", fontSize: 12, marginTop: 4, display: "block" }}>{t("form.addressHint")}</small>
+                {geocodeError && <small style={{ color: "#ef4444", fontSize: 12, marginTop: 4, display: "block" }}>{geocodeError}</small>}
+              </div>
+            )}
+            {form.event_mode !== "physical" && (
+              <div className="form-group">
+                <label>{t("form.onlineUrl")} *</label>
+                <input type="url" value={form.online_url} onChange={update("online_url")} placeholder={t("form.onlineUrlPlaceholder")} />
+              </div>
+            )}
             <div className="form-group">
               <label>{t("form.images")}</label>
               <MultiImageUpload images={images} onImagesChange={setImages} userId={user.id} />

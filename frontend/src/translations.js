@@ -453,6 +453,20 @@ export const translations = {
     "discover.locationBanner": "Aktiver lokasjon for nærmere resultater",
     "discover.noMoreHint": "Du har sett alle tilgjengelige events",
 
+    // Online / multi-day events
+    "form.endDate": "Sluttdato",
+    "form.endDateHint": "For flerdagers events",
+    "form.eventMode": "Type",
+    "form.modePhysical": "Fysisk \u2014 p\u00e5 et sted",
+    "form.modeOnline": "Online \u2014 via lenke",
+    "form.modeHybrid": "Hybrid \u2014 sted + online",
+    "form.onlineUrl": "Lenke til event",
+    "form.onlineUrlPlaceholder": "https://...",
+    "events.online": "Online",
+    "events.hybrid": "Hybrid",
+    "events.multiDay": "Flerdagers",
+    "events.endsNextDay": "+1 dag",
+
     // General
     "loading": "Laster...",
   },
@@ -905,6 +919,20 @@ export const translations = {
     "discover.browseAll": "Browse all events",
     "discover.locationBanner": "Enable location for nearby results",
     "discover.noMoreHint": "You've seen all available events",
+
+    // Online / multi-day events
+    "form.endDate": "End Date",
+    "form.endDateHint": "For multi-day events",
+    "form.eventMode": "Type",
+    "form.modePhysical": "Physical \u2014 at a location",
+    "form.modeOnline": "Online \u2014 via link",
+    "form.modeHybrid": "Hybrid \u2014 location + online",
+    "form.onlineUrl": "Event link",
+    "form.onlineUrlPlaceholder": "https://...",
+    "events.online": "Online",
+    "events.hybrid": "Hybrid",
+    "events.multiDay": "Multi-day",
+    "events.endsNextDay": "+1 day",
 
     // General
     "loading": "Loading...",

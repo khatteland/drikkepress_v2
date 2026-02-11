@@ -4752,3 +4752,59 @@ details[open] > .detail-section-toggle::after {
     width: 100%;
   }
 }
+
+/* ============================================================
+   EVENT MODE BADGES (Online / Hybrid / +1 day)
+   ============================================================ */
+
+.event-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.event-mode-badge.online {
+  background: #EEF2FF;
+  color: #4338CA;
+}
+
+.event-mode-badge.hybrid {
+  background: #FFF7ED;
+  color: #C2410C;
+}
+
+.event-mode-badge.next-day {
+  background: #FEF3C7;
+  color: #92400E;
+  margin-left: 4px;
+}
+
+/* ============================================================
+   EVENT DATE RANGE DISPLAY
+   ============================================================ */
+
+.event-date-range {
+  font-weight: 500;
+}
+
+/* ============================================================
+   ONLINE LINK
+   ============================================================ */
+
+.online-link {
+  color: #4338CA;
+  text-decoration: none;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.online-link:hover {
+  text-decoration: underline;
+}
