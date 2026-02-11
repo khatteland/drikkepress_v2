@@ -3159,12 +3159,12 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
         <h3>{t("profile.organizerTools")}</h3>
         <div className="organizer-actions">
           <button className="btn btn-primary btn-sm" onClick={() => onNavigate("create-event")}>+ {t("nav.newEvent")}</button>
-          <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("venue-register")}>+ {t("nav.registerVenue")}</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("venue-register")}>+ {t("venue.register")}</button>
         </div>
         {createdEvents.length > 0 && (
           <div className="organizer-list">
             <h4>{t("profile.myEventsTab")} ({createdEvents.length})</h4>
-            {createdEvents.slice(0, 5).map((e) => (
+            {createdEvents.map((e) => (
               <div key={e.id} className="organizer-list-item" onClick={() => onNavigate("event-detail", { eventId: e.id })}>
                 <span>{e.title}</span>
                 <button className="btn btn-secondary btn-sm" onClick={(ev) => { ev.stopPropagation(); onNavigate("edit-event", { eventId: e.id }); }}>{t("detail.edit")}</button>
