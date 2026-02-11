@@ -467,6 +467,34 @@ export const translations = {
     "events.multiDay": "Flerdagers",
     "events.endsNextDay": "+1 dag",
 
+    // Vipps Auth
+    "auth.vippsLogin": "Fortsett med Vipps",
+    "auth.vippsDesc": "Logg inn eller opprett konto med Vipps",
+    "auth.vippsError": "Innlogging feilet. Pr\u00f8v igjen.",
+    "auth.vippsHint": "Sikker innlogging med aldersverifisering",
+    "auth.orEmail": "Eller med e-post",
+
+    // Footer
+    "footer.terms": "Salgsvilk\u00e5r",
+
+    // Vipps Payment
+    "booking.payWithVipps": "Betal med Vipps",
+    "booking.waitingPayment": "Venter p\u00e5 betaling...",
+    "booking.waitingPaymentDesc": "Fullf\u00f8r betalingen i Vipps-appen",
+    "booking.paymentFailed": "Betaling feilet",
+    "booking.paymentFailedDesc": "Betalingen ble ikke gjennomf\u00f8rt. Pr\u00f8v igjen.",
+    "booking.paymentTimeout": "Tidsavbrudd",
+    "booking.paymentTimeoutDesc": "Betalingen tok for lang tid. Sjekk Mine billetter.",
+    "booking.paymentError": "Ugyldig betalingsreferanse",
+    "booking.pendingPayment": "Venter p\u00e5 betaling",
+    "booking.refunding": "Refunderer via Vipps...",
+
+    // Age verification
+    "form.minAge": "Aldersgrense",
+    "form.noAgeLimit": "Ingen aldersgrense",
+    "booking.tooYoung": "Du m\u00e5 v\u00e6re minst {age} \u00e5r for \u00e5 kj\u00f8pe denne billetten",
+    "booking.ageRequired": "Aldersgrense: {age}+",
+
     // General
     "loading": "Laster...",
   },
@@ -933,6 +961,34 @@ export const translations = {
     "events.hybrid": "Hybrid",
     "events.multiDay": "Multi-day",
     "events.endsNextDay": "+1 day",
+
+    // Vipps Auth
+    "auth.vippsLogin": "Continue with Vipps",
+    "auth.vippsDesc": "Sign in or create an account with Vipps",
+    "auth.vippsError": "Login failed. Please try again.",
+    "auth.vippsHint": "Secure login with age verification",
+    "auth.orEmail": "Or with email",
+
+    // Footer
+    "footer.terms": "Terms of Sale",
+
+    // Vipps Payment
+    "booking.payWithVipps": "Pay with Vipps",
+    "booking.waitingPayment": "Waiting for payment...",
+    "booking.waitingPaymentDesc": "Complete the payment in the Vipps app",
+    "booking.paymentFailed": "Payment failed",
+    "booking.paymentFailedDesc": "The payment was not completed. Please try again.",
+    "booking.paymentTimeout": "Timeout",
+    "booking.paymentTimeoutDesc": "The payment took too long. Check My Tickets.",
+    "booking.paymentError": "Invalid payment reference",
+    "booking.pendingPayment": "Awaiting payment",
+    "booking.refunding": "Refunding via Vipps...",
+
+    // Age verification
+    "form.minAge": "Age restriction",
+    "form.noAgeLimit": "No age restriction",
+    "booking.tooYoung": "You must be at least {age} years old to purchase this ticket",
+    "booking.ageRequired": "Age restriction: {age}+",
 
     // General
     "loading": "Loading...",

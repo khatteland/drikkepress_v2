@@ -2,6 +2,35 @@ import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useI18n } from "../contexts/I18nContext";
 
+const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+
+function VippsLoginButton({ t }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleVippsLogin = () => {
+    setLoading(true);
+    const returnTo = "/discover";
+    window.location.href = `${SUPABASE_FUNCTIONS_URL}/vipps-auth?action=init&return_to=${encodeURIComponent(returnTo)}`;
+  };
+
+  return (
+    <div className="vipps-section">
+      <button
+        className="vipps-btn"
+        onClick={handleVippsLogin}
+        disabled={loading}
+      >
+        {loading ? (
+          <><span className="spinner" />{t("auth.submitting")}</>
+        ) : (
+          <>{t("auth.vippsLogin")}</>
+        )}
+      </button>
+      <p className="vipps-login-hint">{t("auth.vippsHint")}</p>
+    </div>
+  );
+}
+
 function SocialLoginButtons({ t }) {
   const [loading, setLoading] = useState(null);
 
@@ -34,6 +63,10 @@ export function LoginPage({ onNavigate }) {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Check for error from Vipps callback
+  const urlParams = new URLSearchParams(window.location.search);
+  const authError = urlParams.get("error");
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -48,6 +81,12 @@ export function LoginPage({ onNavigate }) {
       <div className="form-page">
         <div className="form-card">
           <h2>{t("auth.loginTitle")}</h2>
+          {authError && <div className="form-error">{t("auth.vippsError")}</div>}
+
+          <VippsLoginButton t={t} />
+
+          <div className="social-divider"><span>{t("auth.orEmail")}</span></div>
+
           {error && <div className="form-error">{error}</div>}
           <form onSubmit={handleSubmit}>
             <div className="form-group">
@@ -99,6 +138,11 @@ export function RegisterPage({ onNavigate }) {
       <div className="form-page">
         <div className="form-card">
           <h2>{t("auth.registerTitle")}</h2>
+
+          <VippsLoginButton t={t} />
+
+          <div className="social-divider"><span>{t("auth.orEmail")}</span></div>
+
           {error && <div className="form-error">{error}</div>}
           <form onSubmit={handleSubmit}>
             <div className="form-group">

@@ -19,6 +19,7 @@ export function EventCard({ event, onClick }) {
           <span className="event-card-title" style={{ marginBottom: 0 }}>{event.title}</span>
           {event.event_mode === "online" && <span className="event-mode-badge online">{t("events.online")}</span>}
           {event.event_mode === "hybrid" && <span className="event-mode-badge hybrid">{t("events.hybrid")}</span>}
+          {event.min_age && <span className="age-badge">{event.min_age}+</span>}
         </div>
         <div className="event-card-meta">
           <span>

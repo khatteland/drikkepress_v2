@@ -7,6 +7,8 @@ export function parseUrl(pathname) {
   if (pathname === "/create") return { page: "create-event", data: {} };
   if (pathname === "/login") return { page: "login", data: {} };
   if (pathname === "/register") return { page: "register", data: {} };
+  if (pathname === "/payment-callback") return { page: "payment-callback", data: {} };
+  if (pathname === "/terms") return { page: "terms", data: {} };
   if (pathname === "/profile") return { page: "profile", data: {} };
 
   if (pathname === "/friends") return { page: "friends", data: {} };
@@ -58,6 +60,8 @@ export function pageToUrl(page, data = {}) {
     case "venue-manage": return `/venue/${data.venueId}/manage`;
     case "venue-scan": return `/venue/${data.venueId}/scan`;
     case "my-tickets": return "/my-tickets";
+    case "payment-callback": return "/payment-callback";
+    case "terms": return "/terms";
     default: return "/";
   }
 }

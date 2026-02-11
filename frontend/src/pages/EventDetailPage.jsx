@@ -453,6 +453,7 @@ export function EventDetailPage({ eventId, user, onNavigate }) {
             {event.visibility === "semi_public" && <span className="visibility-badge semi-public">{t("restricted.badge")}</span>}
             {event.event_mode === "online" && <span className="event-mode-badge online">{t("events.online")}</span>}
             {event.event_mode === "hybrid" && <span className="event-mode-badge hybrid">{t("events.hybrid")}</span>}
+            {event.min_age && <span className="age-badge">{event.min_age}+</span>}
           </div>
           <h1 className="event-detail-title">{event.title}</h1>
           <div className="event-detail-meta">

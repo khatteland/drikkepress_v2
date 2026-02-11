@@ -22,10 +22,14 @@ export function VenueManagePage({ venueId, user, onNavigate }) {
   const [staffEmail, setStaffEmail] = useState("");
   const [staffRole, setStaffRole] = useState("bouncer");
   const [staffError, setStaffError] = useState("");
+  const [minAge, setMinAge] = useState("");
 
   const loadDashboard = useCallback(() => {
     supabase.rpc("get_venue_dashboard", { p_venue_id: venueId }).then(({ data }) => {
       setDashboard(data);
+      if (data && data.venue) {
+        setMinAge(data.venue.min_age != null ? String(data.venue.min_age) : "");
+      }
       setLoading(false);
     });
   }, [venueId]);
@@ -350,6 +354,27 @@ export function VenueManagePage({ venueId, user, onNavigate }) {
         ) : (
           <p style={{ color: "var(--text-secondary)" }}>{t("venue.noTimeslots")}</p>
         )}
+      </div>
+
+      <div className="venue-dashboard-section">
+        <h2>{t("form.minAge")}</h2>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select
+            value={minAge}
+            onChange={async (e) => {
+              const val = e.target.value;
+              setMinAge(val);
+              await supabase.from("venues").update({ min_age: val ? parseInt(val) : null }).eq("id", venueId);
+            }}
+            style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)" }}
+          >
+            <option value="">{t("form.noAgeLimit")}</option>
+            <option value="18">18+</option>
+            <option value="20">20+</option>
+            <option value="23">23+</option>
+          </select>
+          {minAge && <span className="age-badge">{minAge}+</span>}
+        </div>
       </div>
 
       <div className="venue-dashboard-section">

@@ -3,7 +3,7 @@ import { supabase } from "./lib/supabase";
 import { translations } from "./translations";
 import { I18nContext } from "./contexts/I18nContext";
 import { parseUrl, pageToUrl } from "./utils/routes";
-import { Navbar, BottomTabBar } from "./components/shared";
+import { Navbar, BottomTabBar, Footer } from "./components/shared";
 
 // Lazy-loaded pages (code splitting)
 const DiscoverPage = lazy(() => import("./pages/DiscoverPage").then(m => ({ default: m.DiscoverPage })));
@@ -22,6 +22,8 @@ const VenueRegisterPage = lazy(() => import("./pages/VenueRegisterPage").then(m 
 const VenueManagePage = lazy(() => import("./pages/VenueManagePage").then(m => ({ default: m.VenueManagePage })));
 const VenueScannerPage = lazy(() => import("./pages/VenueScannerPage").then(m => ({ default: m.VenueScannerPage })));
 const MyTicketsPage = lazy(() => import("./pages/MyTicketsPage").then(m => ({ default: m.MyTicketsPage })));
+const PaymentCallbackPage = lazy(() => import("./pages/PaymentCallbackPage").then(m => ({ default: m.PaymentCallbackPage })));
+const TermsPage = lazy(() => import("./pages/TermsPage").then(m => ({ default: m.TermsPage })));
 
 export default function App() {
   const initialRoute = parseUrl(window.location.pathname);
@@ -115,8 +117,11 @@ export default function App() {
           {page === "venue-manage" && <VenueManagePage venueId={pageData.venueId} user={user} onNavigate={navigate} />}
           {page === "venue-scan" && <VenueScannerPage venueId={pageData.venueId} user={user} onNavigate={navigate} />}
           {page === "my-tickets" && <MyTicketsPage user={user} onNavigate={navigate} />}
+          {page === "payment-callback" && <PaymentCallbackPage user={user} onNavigate={navigate} />}
+          {page === "terms" && <TermsPage onNavigate={navigate} />}
         </Suspense>
 
+        <Footer onNavigate={navigate} />
         <BottomTabBar user={user} currentPage={page} onNavigate={navigate} />
       </div>
     </I18nContext.Provider>

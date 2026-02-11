@@ -496,6 +496,25 @@ export function NotificationDropdown({ notifications, unreadCount, onNavigate, o
 // NAVBAR
 // ============================================================
 
+export function Footer({ onNavigate }) {
+  const { t } = useI18n();
+  return (
+    <footer className="site-footer">
+      <div className="footer-content">
+        <div className="footer-company">
+          <strong>Hatteland AS</strong>
+          <span>Org.nr: 928 256 545</span>
+          <span>Herslebs gate 17 B, 0561 Oslo</span>
+          <span><a href="mailto:kristian.hatteland@gmail.com">kristian.hatteland@gmail.com</a></span>
+        </div>
+        <div className="footer-links">
+          <button className="link-button" onClick={() => onNavigate("terms")}>{t("footer.terms")}</button>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
 export function Navbar({ user, currentPage, onNavigate, onLogout }) {
   const { t } = useI18n();
 

@@ -12,7 +12,7 @@ export function EventFormPage({ eventId, user, onNavigate }) {
     title: "", description: "", date: "", time: "", end_time: "",
     location: "", category: "Technology", visibility: "public",
     join_mode: "open", max_attendees: "", venue_id: "",
-    event_mode: "physical", end_date: "", online_url: "",
+    event_mode: "physical", end_date: "", online_url: "", min_age: "",
   });
   const [images, setImages] = useState([]);
   const [error, setError] = useState("");
@@ -43,6 +43,7 @@ export function EventFormPage({ eventId, user, onNavigate }) {
             event_mode: data.event_mode || "physical",
             end_date: data.end_date || "",
             online_url: data.online_url || "",
+            min_age: data.min_age != null ? String(data.min_age) : "",
           });
           if (data.images && data.images.length > 0) {
             setImages(data.images.map((img) => img.image_url));
@@ -99,6 +100,7 @@ export function EventFormPage({ eventId, user, onNavigate }) {
       event_mode: form.event_mode,
       end_date: form.end_date || null,
       online_url: form.online_url || null,
+      min_age: parseInt(form.min_age) || null,
     };
 
     let targetEventId = eventId;
@@ -202,6 +204,15 @@ export function EventFormPage({ eventId, user, onNavigate }) {
               <select value={form.visibility} onChange={update("visibility")}>
                 <option value="public">{t("form.public")}</option>
                 <option value="semi_public">{t("form.semiPublic")}</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>{t("form.minAge")}</label>
+              <select value={form.min_age} onChange={update("min_age")}>
+                <option value="">{t("form.noAgeLimit")}</option>
+                <option value="18">18+</option>
+                <option value="20">20+</option>
+                <option value="23">23+</option>
               </select>
             </div>
             <div className="form-group">

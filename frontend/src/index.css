@@ -4808,3 +4808,293 @@ details[open] > .detail-section-toggle::after {
 .online-link:hover {
   text-decoration: underline;
 }
+
+/* ============================================================
+   VIPPS LOGIN
+   ============================================================ */
+
+.vipps-login-card {
+  background: white;
+  border-radius: 16px;
+  padding: 40px 32px;
+  max-width: 400px;
+  margin: 0 auto;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.vipps-login-card h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #1B2141;
+}
+
+.vipps-login-subtitle {
+  font-size: 0.95rem;
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.vipps-login-hint {
+  font-size: 0.8rem;
+  color: #999;
+  margin-top: 16px;
+}
+
+.vipps-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #FF5B24;
+  color: white;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.vipps-btn:hover {
+  background: #E04D1B;
+}
+
+.vipps-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   AGE BADGE
+   ============================================================ */
+
+.age-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-left: 6px;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+.age-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+/* ============================================================
+   PAYMENT STATUS (callback page)
+   ============================================================ */
+
+.payment-status {
+  max-width: 420px;
+  margin: 60px auto;
+  padding: 40px 32px;
+  background: white;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.payment-status-polling h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-top: 20px;
+  margin-bottom: 8px;
+  color: #1B2141;
+}
+
+.payment-status-polling p {
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.spinner-large {
+  width: 48px;
+  height: 48px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid #FF5B24;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+.payment-success-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #16a34a;
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.payment-status-success h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #16a34a;
+  margin-bottom: 8px;
+}
+
+.payment-failed-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.payment-status-failed h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #dc2626;
+  margin-bottom: 8px;
+}
+
+.payment-status-failed p {
+  color: #666;
+  font-size: 0.95rem;
+}
+
+/* Pending payment status badge */
+.ticket-card-status.pending_payment {
+  color: #d97706;
+  background: #fef3c7;
+}
+
+/* ============================================================
+   VIPPS SECTION (in auth forms)
+   ============================================================ */
+
+.vipps-section {
+  margin-bottom: 8px;
+}
+
+.vipps-section .vipps-login-hint {
+  text-align: center;
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+
+.site-footer {
+  background: white;
+  border-top: 1px solid #E5E7EB;
+  padding: 24px;
+  margin-top: 40px;
+  padding-bottom: 100px; /* space for mobile bottom nav */
+}
+
+.footer-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.footer-company {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: #666;
+}
+
+.footer-company strong {
+  font-size: 14px;
+  color: #1B2141;
+}
+
+.footer-company a {
+  color: #666;
+  text-decoration: none;
+}
+
+.footer-company a:hover {
+  text-decoration: underline;
+}
+
+.footer-links {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.footer-links .link-button {
+  font-size: 13px;
+}
+
+/* ============================================================
+   TERMS PAGE
+   ============================================================ */
+
+.terms-page {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
+
+.terms-page h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.terms-updated {
+  color: #888;
+  font-size: 0.85rem;
+  margin-bottom: 32px;
+}
+
+.terms-page h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 28px;
+  margin-bottom: 8px;
+  color: #1B2141;
+}
+
+.terms-page p {
+  font-size: 0.95rem;
+  color: #444;
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
+
+.terms-page a {
+  color: #F26B3A;
+  text-decoration: none;
+}
+
+.terms-page a:hover {
+  text-decoration: underline;
+}

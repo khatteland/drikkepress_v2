@@ -4,29 +4,73 @@ import { useI18n } from "../contexts/I18nContext";
 import { formatDate } from "../utils/helpers";
 import { QRCodeSVG } from "qrcode.react";
 
+const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+
 // ============================================================
 // PURCHASE MODAL
 // ============================================================
 
-function PurchaseModal({ timeslot, venue, user, onClose, onSuccess }) {
+function PurchaseModal({ timeslot, venue, user, onClose, onSuccess, onNavigate }) {
   const { t, lang } = useI18n();
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
   const formatPrice = (ore) => ore === 0 ? "Gratis" : `${(ore / 100).toFixed(0)} kr`;
+  const isFree = timeslot.price === 0;
 
   const handlePurchase = async () => {
     setSubmitting(true);
     setError("");
-    const { data, error: err } = await supabase.rpc("purchase_timeslot", { p_timeslot_id: timeslot.id });
-    setSubmitting(false);
-    if (err) { setError(err.message); return; }
-    if (data.status === "error") {
-      setError(data.code === "already_booked" ? t("booking.alreadyBooked") : data.code === "sold_out" ? t("timeslot.soldOut") : data.code);
-      return;
+
+    if (isFree) {
+      // Free ticket — use RPC directly
+      const { data, error: err } = await supabase.rpc("reserve_timeslot", { p_timeslot_id: timeslot.id });
+      setSubmitting(false);
+      if (err) { setError(err.message); return; }
+      if (data.status === "error") {
+        if (data.code === "too_young") { setError(t("booking.tooYoung").replace("{age}", data.min_age)); return; }
+        setError(data.code === "already_booked" ? t("booking.alreadyBooked") : data.code === "sold_out" ? t("timeslot.soldOut") : data.code);
+        return;
+      }
+      setResult(data);
+    } else {
+      // Paid ticket — use Vipps payment edge function
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) { setError("Not authenticated"); setSubmitting(false); return; }
+
+        const res = await fetch(`${SUPABASE_FUNCTIONS_URL}/vipps-payment?action=create`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ timeslot_id: timeslot.id }),
+        });
+
+        const data = await res.json();
+        setSubmitting(false);
+
+        if (!res.ok || data.status === "error") {
+          if (data.code === "too_young") { setError(t("booking.tooYoung").replace("{age}", data.min_age)); return; }
+          setError(data.code === "already_booked" ? t("booking.alreadyBooked") : data.code === "sold_out" ? t("timeslot.soldOut") : data.error || data.code || "Error");
+          return;
+        }
+
+        if (data.redirect_url) {
+          // Redirect to Vipps
+          window.location.href = data.redirect_url;
+          return;
+        }
+
+        // Shouldn't happen for paid, but handle gracefully
+        setResult(data);
+      } catch (err) {
+        setSubmitting(false);
+        setError(err.message || "Network error");
+      }
     }
-    setResult(data);
   };
 
   const qrValue = result ? `${window.location.origin}/venue/${venue.id}/scan?token=${result.qr_token}` : "";
@@ -65,12 +109,22 @@ function PurchaseModal({ timeslot, venue, user, onClose, onSuccess }) {
               {timeslot.description && <p>{timeslot.description}</p>}
               <p className="price-line">{formatPrice(timeslot.price)}</p>
             </div>
-            <div className="mock-payment-badge">
-              ⚠️ {t("booking.mockPayment")} — {t("booking.mockPaymentDesc")}
-            </div>
+            {venue.min_age && (
+              <div className="age-notice">
+                {t("booking.ageRequired").replace("{age}", venue.min_age)}
+              </div>
+            )}
             {error && <div className="form-error">{error}</div>}
-            <button className="btn btn-primary" style={{ width: "100%" }} onClick={handlePurchase} disabled={submitting}>
-              {submitting ? t("loading") : `${t("booking.confirm")} — ${formatPrice(timeslot.price)}`}
+            <button
+              className={isFree ? "btn btn-primary" : "vipps-btn"}
+              style={{ width: "100%" }}
+              onClick={handlePurchase}
+              disabled={submitting}
+            >
+              {submitting ? t("loading") : isFree
+                ? `${t("booking.confirm")} — ${formatPrice(timeslot.price)}`
+                : `${t("booking.payWithVipps")} — ${formatPrice(timeslot.price)}`
+              }
             </button>
           </>
         )}
@@ -193,6 +247,7 @@ export function VenueDetailPage({ venueId, user, onNavigate }) {
         <h1>
           {venue.name}
           {venue.verified && <span className="venue-badge verified">{t("venue.verified")}</span>}
+          {venue.min_age && <span className="age-badge">{venue.min_age}+</span>}
         </h1>
         <div className="venue-detail-meta">
           <span>📍 {venue.address}</span>
@@ -290,6 +345,7 @@ export function VenueDetailPage({ venueId, user, onNavigate }) {
           user={user}
           onClose={() => setPurchaseTimeslot(null)}
           onSuccess={() => { setPurchaseTimeslot(null); loadVenue(); }}
+          onNavigate={onNavigate}
         />
       )}
     </div>
