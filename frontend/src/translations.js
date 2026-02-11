@@ -420,6 +420,26 @@ export const translations = {
     "venue.availability": "Tilgjengelighet",
     "venue.noTimeslotsDate": "Ingenting tilgjengelig denne datoen",
 
+    // Search/Browse
+    "nav.search": "Søk",
+    "search.viewList": "Liste",
+    "search.viewMap": "Kart",
+
+    // Organizer tools
+    "profile.organizerTools": "Arrangørverktøy",
+    "profile.manageVenue": "Administrer",
+    "profile.getStarted": "Kom i gang som arrangør",
+    "profile.logout": "Logg ut",
+
+    // Detail admin/attendees
+    "detail.adminTools": "Admin",
+    "detail.showAttendees": "Deltakere",
+
+    // Discover extras
+    "discover.browseAll": "Se alle events",
+    "discover.locationBanner": "Aktiver lokasjon for nærmere resultater",
+    "discover.noMoreHint": "Du har sett alle tilgjengelige events",
+
     // General
     "loading": "Laster...",
   },
@@ -839,6 +859,26 @@ export const translations = {
     "table.labelPlaceholder": "e.g. Table 1, VIP booth",
     "venue.availability": "Availability",
     "venue.noTimeslotsDate": "Nothing available on this date",
+
+    // Search/Browse
+    "nav.search": "Search",
+    "search.viewList": "List",
+    "search.viewMap": "Map",
+
+    // Organizer tools
+    "profile.organizerTools": "Organizer Tools",
+    "profile.manageVenue": "Manage",
+    "profile.getStarted": "Get started as organizer",
+    "profile.logout": "Sign Out",
+
+    // Detail admin/attendees
+    "detail.adminTools": "Admin",
+    "detail.showAttendees": "Attendees",
+
+    // Discover extras
+    "discover.browseAll": "Browse all events",
+    "discover.locationBanner": "Enable location for nearby results",
+    "discover.noMoreHint": "You've seen all available events",
 
     // General
     "loading": "Loading...",

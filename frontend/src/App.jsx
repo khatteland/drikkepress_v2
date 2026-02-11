@@ -232,9 +232,11 @@ function generateIcsFile(event) {
 // ============================================================
 
 function parseUrl(pathname) {
-  if (pathname === "/" || pathname === "") return { page: "events", data: {} };
+  if (pathname === "/" || pathname === "") return { page: "discover", data: {} };
   if (pathname === "/discover") return { page: "discover", data: {} };
-  if (pathname === "/map") return { page: "map", data: {} };
+  if (pathname === "/search") return { page: "search", data: {} };
+  if (pathname === "/events") return { page: "search", data: {} };
+  if (pathname === "/map") return { page: "search", data: { view: "map" } };
   if (pathname === "/create") return { page: "create-event", data: {} };
   if (pathname === "/login") return { page: "login", data: {} };
   if (pathname === "/register") return { page: "register", data: {} };
@@ -267,14 +269,14 @@ function parseUrl(pathname) {
   const editMatch = pathname.match(/^\/edit\/(\d+)$/);
   if (editMatch) return { page: "edit-event", data: { eventId: parseInt(editMatch[1]) } };
 
-  return { page: "events", data: {} };
+  return { page: "discover", data: {} };
 }
 
 function pageToUrl(page, data = {}) {
   switch (page) {
-    case "events": return "/";
-    case "discover": return "/discover";
-    case "map": return "/map";
+    case "discover": return "/";
+    case "search": return "/search";
+    case "events": return "/search";
     case "create-event": return "/create";
     case "login": return "/login";
     case "register": return "/register";
@@ -601,38 +603,7 @@ function BottomTabBar({ user, currentPage, onNavigate }) {
 
   return (
     <div className="bottom-tab-bar">
-      {/* Events */}
-      <button className={`bottom-tab ${isActive("events") ? "active" : ""}`} onClick={() => handleNav("events")}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-          <polyline points="9 22 9 12 15 12 15 22"/>
-        </svg>
-        <span>{t("nav.events")}</span>
-      </button>
-
-      {/* Venues */}
-      <button className={`bottom-tab ${isActive("venues") ? "active" : ""}`} onClick={() => handleNav("venues")}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 21h18"/>
-          <path d="M5 21V7l8-4v18"/>
-          <path d="M19 21V11l-6-4"/>
-          <path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/>
-        </svg>
-        <span>{t("nav.venues")}</span>
-      </button>
-
-      {/* My Tickets — only if logged in */}
-      {user && (
-        <button className={`bottom-tab ${isActive("my-tickets") ? "active" : ""}`} onClick={() => handleNav("my-tickets")}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/>
-            <path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>
-          </svg>
-          <span>{t("nav.myTickets")}</span>
-        </button>
-      )}
-
-      {/* Discover */}
+      {/* Discover (Compass) */}
       <button className={`bottom-tab ${isActive("discover") ? "active" : ""}`} onClick={() => handleNav("discover")}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="10"/>
@@ -641,7 +612,25 @@ function BottomTabBar({ user, currentPage, onNavigate }) {
         <span>{t("nav.discover")}</span>
       </button>
 
-      {/* Profile */}
+      {/* Search (Magnifying glass) */}
+      <button className={`bottom-tab ${isActive("search") ? "active" : ""}`} onClick={() => handleNav("search")}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <span>{t("nav.search")}</span>
+      </button>
+
+      {/* Tickets (always visible, login-gate on tap) */}
+      <button className={`bottom-tab ${isActive("my-tickets") ? "active" : ""}`} onClick={() => handleNav(user ? "my-tickets" : "login")}>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/>
+          <path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>
+        </svg>
+        <span>{t("nav.myTickets")}</span>
+      </button>
+
+      {/* Profile (always visible, login-gate on tap) */}
       <button className={`bottom-tab ${isActive("profile") ? "active" : ""}`} onClick={() => handleNav(user ? "profile" : "login")}>
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -725,29 +714,21 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
 
   return (
     <nav className="navbar">
-      <div className="navbar-brand" onClick={() => nav("events")}>
+      <div className="navbar-brand" onClick={() => nav("discover")}>
         <img src="/logo.png" alt="Hapn" className="navbar-logo" />
       </div>
 
-      {/* Desktop links */}
+      {/* Desktop links — simplified */}
       <div className="navbar-links navbar-desktop">
-        <button className={currentPage === "events" ? "active" : ""} onClick={() => nav("events")}>
-          {t("nav.events")}
-        </button>
         <button className={currentPage === "discover" ? "active" : ""} onClick={() => nav("discover")}>
           {t("nav.discover")}
         </button>
-        <button className={currentPage === "map" ? "active" : ""} onClick={() => nav("map")}>
-          {t("nav.map")}
+        <button className={currentPage === "search" ? "active" : ""} onClick={() => nav("search")}>
+          {t("nav.search")}
         </button>
         <button className={currentPage === "venues" ? "active" : ""} onClick={() => nav("venues")}>
           {t("nav.venues")}
         </button>
-        {user && (
-          <button className={currentPage === "friends" ? "active" : ""} onClick={() => nav("friends")}>
-            {t("nav.friends")}
-          </button>
-        )}
         {user && (
           <button className={currentPage === "my-tickets" ? "active" : ""} onClick={() => nav("my-tickets")}>
             {t("nav.myTickets")}
@@ -755,9 +736,6 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
         )}
         {user ? (
           <div className="navbar-user">
-            <button className="btn-primary" onClick={() => nav("create-event")}>
-              {t("nav.newEvent")}
-            </button>
             <NotificationBell user={user} onNavigate={(p, d) => nav(p, d)} />
             <button className={currentPage === "profile" ? "active" : ""} onClick={() => nav("profile")}>
               {t("nav.profile")}
@@ -767,7 +745,6 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
             ) : (
               <span className="navbar-user-name">{user.name}</span>
             )}
-            <button onClick={() => onLogout()}>{t("nav.logout")}</button>
           </div>
         ) : (
           <>
@@ -797,12 +774,6 @@ function EventCard({ event, onClick }) {
     <div className="event-card" onClick={onClick}>
       {event.image_url && <img className="event-card-image" src={event.image_url} alt={event.title} />}
       <div className="event-card-body">
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span className="event-card-category">{t(`cat.${event.category}`)}</span>
-          {event.visibility === "semi_public" && (
-            <span className="visibility-badge semi-public">{t("restricted.badge")}</span>
-          )}
-        </div>
         <div className="event-card-title">{event.title}</div>
         <div className="event-card-meta">
           <span>{formatDate(event.date, lang)}</span>
@@ -811,17 +782,7 @@ function EventCard({ event, onClick }) {
         <div className="event-card-footer">
           <div className="event-card-attendees">
             <strong>{event.going_count || 0}</strong> {t("events.attending")}
-            {event.max_attendees && (
-              <span className="event-card-capacity"> / {event.max_attendees} {t("detail.spots")}</span>
-            )}
-            {event.max_attendees && (event.going_count || 0) >= event.max_attendees && (
-              <span className="event-card-full-badge">{t("events.full")}</span>
-            )}
-            {(event.interested_count || 0) > 0 && (
-              <> · <strong>{event.interested_count}</strong> {t("events.interested")}</>
-            )}
           </div>
-          <div className="event-card-creator">{t("events.by")} {event.creator_name}</div>
         </div>
       </div>
     </div>
@@ -829,16 +790,18 @@ function EventCard({ event, onClick }) {
 }
 
 // ============================================================
-// EVENTS LIST PAGE
+// SEARCH & BROWSE PAGE (replaces Events + Map)
 // ============================================================
 
-function EventsPage({ onNavigate }) {
+function SearchBrowsePage({ onNavigate, initialView }) {
   const { t, lang } = useI18n();
   const [events, setEvents] = useState([]);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
-  const [timeFilter, setTimeFilter] = useState("upcoming");
   const [loading, setLoading] = useState(true);
+  const [view, setView] = useState(initialView || "list");
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
 
   useEffect(() => {
     setLoading(true);
@@ -847,20 +810,15 @@ function EventsPage({ onNavigate }) {
     let query = supabase
       .from("events")
       .select("*, creator:profiles!creator_id(name), rsvps(status)")
-      .eq("visibility", "public");
+      .eq("visibility", "public")
+      .gte("date", today)
+      .order("date", { ascending: true });
 
     if (search) {
       query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,location.ilike.%${search}%`);
     }
     if (category) {
       query = query.eq("category", category);
-    }
-    if (timeFilter === "upcoming") {
-      query = query.gte("date", today).order("date", { ascending: true });
-    } else if (timeFilter === "past") {
-      query = query.lt("date", today).order("date", { ascending: false });
-    } else {
-      query = query.order("date", { ascending: true });
     }
 
     query.then(({ data, error }) => {
@@ -874,88 +832,16 @@ function EventsPage({ onNavigate }) {
       setEvents(enriched);
       setLoading(false);
     });
-  }, [search, category, timeFilter]);
+  }, [search, category]);
 
-  return (
-    <div className="container">
-      <div className="page-header">
-        <h1>{t("events.title")}</h1>
-        <p>{t("events.subtitle")}</p>
-      </div>
-
-      <div className="filters-bar">
-        <input className="search-input" type="text" placeholder={t("events.search")}
-          value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select className="filter-select" value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="">{t("events.allCategories")}</option>
-          {CATEGORIES.map((c) => <option key={c} value={c}>{t(`cat.${c}`)}</option>)}
-        </select>
-        <div className="filter-tabs">
-          <button className={`filter-tab ${timeFilter === "upcoming" ? "active" : ""}`} onClick={() => setTimeFilter("upcoming")}>
-            {t("events.upcoming")}
-          </button>
-          <button className={`filter-tab ${timeFilter === "past" ? "active" : ""}`} onClick={() => setTimeFilter("past")}>
-            {t("events.past")}
-          </button>
-          <button className={`filter-tab ${timeFilter === "" ? "active" : ""}`} onClick={() => setTimeFilter("")}>
-            {t("events.all")}
-          </button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="loading">{t("events.loading")}</div>
-      ) : events.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">🎉</div>
-          <h3>{t("events.empty")}</h3>
-          <p>{t("events.emptyHint")}</p>
-        </div>
-      ) : (
-        <div className="events-grid">
-          {events.map((e) => (
-            <EventCard key={e.id} event={e} onClick={() => onNavigate("event-detail", { eventId: e.id })} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============================================================
-// MAP PAGE (Leaflet + Geolocation)
-// ============================================================
-
-function MapPage({ onNavigate }) {
-  const { t, lang } = useI18n();
-  const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-
+  // Map rendering
   useEffect(() => {
-    supabase
-      .from("events")
-      .select("id, title, date, time, location, category, latitude, longitude, image_url, rsvps(status)")
-      .eq("visibility", "public")
-      .not("latitude", "is", null)
-      .not("longitude", "is", null)
-      .then(({ data }) => {
-        const enriched = (data || []).map((e) => ({
-          ...e,
-          going_count: e.rsvps?.filter((r) => r.status === "going").length || 0,
-        }));
-        setEvents(enriched);
-        setLoading(false);
-      });
-  }, []);
-
-  useEffect(() => {
-    if (loading || !mapRef.current || mapInstanceRef.current) return;
+    if (view !== "map" || loading || !mapRef.current) return;
+    if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
     const L = window.L;
     if (!L) return;
 
-    // Default: world view
+    const mapEvents = events.filter((e) => e.latitude && e.longitude);
     const map = L.map(mapRef.current).setView([20, 0], 2);
     mapInstanceRef.current = map;
 
@@ -964,24 +850,20 @@ function MapPage({ onNavigate }) {
       maxZoom: 19,
     }).addTo(map);
 
-    // Try geolocation
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => map.setView([pos.coords.latitude, pos.coords.longitude], 12),
         () => {
-          // If events exist, fit to their bounds
-          if (events.length > 0) {
-            const bounds = events.map((e) => [e.latitude, e.longitude]);
-            map.fitBounds(bounds, { padding: [50, 50] });
+          if (mapEvents.length > 0) {
+            map.fitBounds(mapEvents.map((e) => [e.latitude, e.longitude]), { padding: [50, 50] });
           }
         }
       );
-    } else if (events.length > 0) {
-      const bounds = events.map((e) => [e.latitude, e.longitude]);
-      map.fitBounds(bounds, { padding: [50, 50] });
+    } else if (mapEvents.length > 0) {
+      map.fitBounds(mapEvents.map((e) => [e.latitude, e.longitude]), { padding: [50, 50] });
     }
 
-    events.forEach((ev) => {
+    mapEvents.forEach((ev) => {
       const popupHtml = `
         <div class="map-popup">
           ${ev.image_url ? `<img class="map-popup-image" src="${ev.image_url}" alt="" />` : ""}
@@ -1015,16 +897,47 @@ function MapPage({ onNavigate }) {
       }
     });
 
-    return () => { map.remove(); mapInstanceRef.current = null; };
-  }, [loading, events, onNavigate, lang, t]);
+    return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
+  }, [view, loading, events, onNavigate, lang, t]);
 
   return (
     <div className="container">
-      <div className="page-header">
-        <h1>{t("map.title")}</h1>
-        <p>{t("map.subtitle")}</p>
+      <div className="search-browse-header">
+        <div className="search-browse-controls">
+          <input className="search-input" type="text" placeholder={t("events.search")}
+            value={search} onChange={(e) => setSearch(e.target.value)} />
+          <select className="filter-select" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="">{t("events.allCategories")}</option>
+            {CATEGORIES.map((c) => <option key={c} value={c}>{t(`cat.${c}`)}</option>)}
+          </select>
+          <div className="view-toggle">
+            <button className={`view-toggle-btn ${view === "list" ? "active" : ""}`} onClick={() => setView("list")}>
+              {t("search.viewList")}
+            </button>
+            <button className={`view-toggle-btn ${view === "map" ? "active" : ""}`} onClick={() => setView("map")}>
+              {t("search.viewMap")}
+            </button>
+          </div>
+        </div>
       </div>
-      {loading ? <div className="loading">{t("map.loading")}</div> : <div className="map-container" ref={mapRef}></div>}
+
+      {loading ? (
+        <div className="loading">{t("events.loading")}</div>
+      ) : view === "map" ? (
+        <div className="map-container" ref={mapRef}></div>
+      ) : events.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">🎉</div>
+          <h3>{t("events.empty")}</h3>
+          <p>{t("events.emptyHint")}</p>
+        </div>
+      ) : (
+        <div className="events-grid">
+          {events.map((e) => (
+            <EventCard key={e.id} event={e} onClick={() => onNavigate("event-detail", { eventId: e.id })} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1521,7 +1434,7 @@ function EventDetailPage({ eventId, user, onNavigate }) {
   const handleDelete = async () => {
     if (!confirm(t("detail.deleteConfirm"))) return;
     await supabase.from("events").delete().eq("id", eventId);
-    onNavigate("events");
+    onNavigate("discover");
   };
 
   const handleAccessRequest = async (e) => {
@@ -1558,7 +1471,7 @@ function EventDetailPage({ eventId, user, onNavigate }) {
     return (
       <div className="container">
         <div className="restricted-event">
-          <button className="back-button" onClick={() => onNavigate("events")}>{t("detail.back")}</button>
+          <button className="back-button" onClick={() => onNavigate("discover")}>{t("detail.back")}</button>
           <div className="restricted-icon">🔒</div>
           <h1>{event.title}</h1>
           <span className="visibility-badge semi-public">{t("restricted.badge")}</span>
@@ -1601,7 +1514,7 @@ function EventDetailPage({ eventId, user, onNavigate }) {
   return (
     <div className="container">
       <div className="event-detail">
-        <button className="back-button" onClick={() => onNavigate("events")}>{t("detail.back")}</button>
+        <button className="back-button" onClick={() => onNavigate("discover")}>{t("detail.back")}</button>
 
         {event.my_kicked && (
           <div className="kicked-notice">{t("kick.notice")}</div>
@@ -1651,22 +1564,7 @@ function EventDetailPage({ eventId, user, onNavigate }) {
         <div className="event-actions">
           <button className="btn btn-secondary btn-sm" onClick={handleShare}>{t("detail.share")}</button>
           <button className="btn btn-secondary btn-sm" onClick={() => generateIcsFile(event)}>{t("cal.ics")}</button>
-          {isAdmin && (
-            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("edit-event", { eventId: event.id })}>{t("detail.edit")}</button>
-          )}
-          {isCreator && (
-            <button className="btn btn-danger btn-sm" onClick={handleDelete}>{t("detail.delete")}</button>
-          )}
-          {isAdmin && event.qr_enabled && (
-            <button className="btn btn-primary btn-sm" onClick={() => onNavigate("checkin", { eventId: event.id })}>{t("qr.openScanner")}</button>
-          )}
         </div>
-
-        {isAdmin && (
-          <QrToggleSection eventId={eventId} qrEnabled={event.qr_enabled} onToggle={loadEvent} />
-        )}
-
-        <p className="event-detail-description">{event.description}</p>
 
         {!event.my_kicked && (
         <div className="rsvp-section">
@@ -1718,79 +1616,100 @@ function EventDetailPage({ eventId, user, onNavigate }) {
         </div>
         )}
 
+        <p className="event-detail-description">{event.description}</p>
+
         <QrTicketSection event={event} />
 
         {(event.going_users?.length > 0 || event.interested_users?.length > 0) && (
-          <div className="attendees-section">
-            {event.going_users?.length > 0 && (
-              <>
-                <h3>{t("detail.goingTitle")} ({event.going_users.length})</h3>
-                <div className="attendees-list">
-                  {event.going_users.map((u) => (
-                    isAdmin && u.id !== user.id ? (
-                      <span key={u.id} className="attendee-chip-with-action clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
+          <details className="detail-attendees-collapsible">
+            <summary className="detail-section-toggle">
+              {t("detail.showAttendees")} ({(event.going_users?.length || 0) + (event.interested_users?.length || 0)})
+            </summary>
+            <div className="attendees-section">
+              {event.going_users?.length > 0 && (
+                <>
+                  <h3>{t("detail.goingTitle")} ({event.going_users.length})</h3>
+                  <div className="attendees-list">
+                    {event.going_users.map((u) => (
+                      isAdmin && u.id !== user.id ? (
+                        <span key={u.id} className="attendee-chip-with-action clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
+                          <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
+                          {u.name}
+                          {u.checked_in_at && event.qr_enabled && <span style={{ color: "#16a34a", fontSize: 11 }}>&#10003;</span>}
+                          <button className="attendee-kick-btn" onClick={(e) => { e.stopPropagation(); handleKick(u.id); }}>{t("kick.button")}</button>
+                        </span>
+                      ) : (
+                        <span key={u.id} className="attendee-chip clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
+                          <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
+                          {u.name}
+                          {u.checked_in_at && event.qr_enabled && <span style={{ color: "#16a34a", fontSize: 11 }}>&#10003;</span>}
+                        </span>
+                      )
+                    ))}
+                  </div>
+                </>
+              )}
+              {event.interested_users?.length > 0 && (
+                <>
+                  <h3 style={{ marginTop: 16 }}>{t("detail.interestedTitle")} ({event.interested_users.length})</h3>
+                  <div className="attendees-list">
+                    {event.interested_users.map((u) => (
+                      isAdmin && u.id !== user.id ? (
+                        <span key={u.id} className="attendee-chip-with-action clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
+                          <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
+                          {u.name}
+                          <button className="attendee-kick-btn" onClick={(e) => { e.stopPropagation(); handleKick(u.id); }}>{t("kick.button")}</button>
+                        </span>
+                      ) : (
+                        <span key={u.id} className="attendee-chip clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
+                          <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
+                          {u.name}
+                        </span>
+                      )
+                    ))}
+                  </div>
+                </>
+              )}
+              {event.waitlisted_users?.length > 0 && (
+                <>
+                  <h3 style={{ marginTop: 16 }}>{t("detail.waitlistTitle")} ({event.waitlisted_users.length})</h3>
+                  <div className="attendees-list">
+                    {event.waitlisted_users.map((u) => (
+                      <span key={u.id} className="attendee-chip waitlisted clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
                         <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
                         {u.name}
-                        {u.checked_in_at && event.qr_enabled && <span style={{ color: "#16a34a", fontSize: 11 }}>&#10003;</span>}
-                        <button className="attendee-kick-btn" onClick={(e) => { e.stopPropagation(); handleKick(u.id); }}>{t("kick.button")}</button>
                       </span>
-                    ) : (
-                      <span key={u.id} className="attendee-chip clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
-                        <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
-                        {u.name}
-                        {u.checked_in_at && event.qr_enabled && <span style={{ color: "#16a34a", fontSize: 11 }}>&#10003;</span>}
-                      </span>
-                    )
-                  ))}
-                </div>
-              </>
-            )}
-            {event.interested_users?.length > 0 && (
-              <>
-                <h3 style={{ marginTop: 16 }}>{t("detail.interestedTitle")} ({event.interested_users.length})</h3>
-                <div className="attendees-list">
-                  {event.interested_users.map((u) => (
-                    isAdmin && u.id !== user.id ? (
-                      <span key={u.id} className="attendee-chip-with-action clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
-                        <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
-                        {u.name}
-                        <button className="attendee-kick-btn" onClick={(e) => { e.stopPropagation(); handleKick(u.id); }}>{t("kick.button")}</button>
-                      </span>
-                    ) : (
-                      <span key={u.id} className="attendee-chip clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
-                        <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
-                        {u.name}
-                      </span>
-                    )
-                  ))}
-                </div>
-              </>
-            )}
-            {event.waitlisted_users?.length > 0 && (
-              <>
-                <h3 style={{ marginTop: 16 }}>{t("detail.waitlistTitle")} ({event.waitlisted_users.length})</h3>
-                <div className="attendees-list">
-                  {event.waitlisted_users.map((u) => (
-                    <span key={u.id} className="attendee-chip waitlisted clickable" onClick={() => onNavigate("user-profile", { userId: u.id })}>
-                      <Avatar name={u.name} avatarUrl={u.avatar_url} size={24} />
-                      {u.name}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </details>
         )}
 
-        {isAdmin && event.visibility === "semi_public" && (
-          <>
-            <InvitationManager eventId={eventId} />
-            <AccessRequestManager eventId={eventId} />
-          </>
-        )}
-
-        {isCreator && (
-          <AdminManager eventId={eventId} />
+        {isAdmin && (
+          <details className="detail-admin-section">
+            <summary className="detail-section-toggle">{t("detail.adminTools")}</summary>
+            <div className="detail-admin-content">
+              <div className="event-actions">
+                <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("edit-event", { eventId: event.id })}>{t("detail.edit")}</button>
+                {isCreator && (
+                  <button className="btn btn-danger btn-sm" onClick={handleDelete}>{t("detail.delete")}</button>
+                )}
+                {event.qr_enabled && (
+                  <button className="btn btn-primary btn-sm" onClick={() => onNavigate("checkin", { eventId: event.id })}>{t("qr.openScanner")}</button>
+                )}
+              </div>
+              <QrToggleSection eventId={eventId} qrEnabled={event.qr_enabled} onToggle={loadEvent} />
+              {event.visibility === "semi_public" && (
+                <>
+                  <InvitationManager eventId={eventId} />
+                  <AccessRequestManager eventId={eventId} />
+                </>
+              )}
+              {isCreator && <AdminManager eventId={eventId} />}
+            </div>
+          </details>
         )}
 
         <div className="comments-section">
@@ -1874,41 +1793,52 @@ function DiscoverPage({ user, onNavigate }) {
 
   // Request geolocation on mount
   useEffect(() => {
-    if (!navigator.geolocation) { setLocationDenied(true); setLoading(false); return; }
+    if (!navigator.geolocation) { setLocationDenied(true); return; }
     navigator.geolocation.getCurrentPosition(
       (pos) => { setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
-      () => { setLocationDenied(true); setLoading(false); }
+      () => { setLocationDenied(true); }
     );
   }, []);
 
-  // Fetch cards when location/filters change
+  // Fetch cards when location/filters change — fallback without geo
   useEffect(() => {
-    if (!userLocation) return;
     setLoading(true);
-    supabase.rpc("get_discover_events", {
-      p_lat: userLocation.lat,
-      p_lng: userLocation.lng,
-      p_radius_km: radius,
-      p_date_from: dateFrom,
-      p_date_to: dateTo || null,
-      p_category: category || null,
-      p_limit: 20,
-    }).then(({ data }) => {
-      setCards(data || []);
-      setCurrentIndex(0);
-      setLoading(false);
-    });
-  }, [userLocation, radius, dateFrom, dateTo, category]);
+    if (userLocation) {
+      supabase.rpc("get_discover_events", {
+        p_lat: userLocation.lat,
+        p_lng: userLocation.lng,
+        p_radius_km: radius,
+        p_date_from: dateFrom,
+        p_date_to: dateTo || null,
+        p_category: category || null,
+        p_limit: 20,
+      }).then(({ data }) => {
+        setCards(data || []);
+        setCurrentIndex(0);
+        setLoading(false);
+      });
+    } else if (locationDenied) {
+      // Fallback: fetch events without location
+      const today = new Date().toISOString().split("T")[0];
+      let q = supabase.from("events").select("id, title, date, time, location, category, image_url").eq("visibility", "public").gte("date", today).order("date").limit(20);
+      if (category) q = q.eq("category", category);
+      q.then(({ data }) => {
+        setCards((data || []).map((e) => ({ ...e, going_count: 0, attendee_preview: [] })));
+        setCurrentIndex(0);
+        setLoading(false);
+      });
+    }
+  }, [userLocation, locationDenied, radius, dateFrom, dateTo, category]);
 
   const currentCard = cards[currentIndex];
   const behindCard1 = cards[currentIndex + 1];
   const behindCard2 = cards[currentIndex + 2];
 
   const handleSwipe = async (direction) => {
-    if (!currentCard || !user) return;
+    if (!currentCard) return;
+    if (!user) { onNavigate("login"); return; }
     setSwipeDir(direction);
     await supabase.rpc("handle_swipe", { p_event_id: currentCard.id, p_direction: direction });
-    // Wait for animation
     setTimeout(() => {
       setSwipeDir(null);
       setCurrentIndex((prev) => prev + 1);
@@ -1999,47 +1929,18 @@ function DiscoverPage({ user, onNavigate }) {
     </div>
   );
 
-  // Location denied
-  if (locationDenied) {
-    return (
-      <div className="discover-page">
-        <div className="discover-location-prompt">
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📍</div>
-          <h3>{t("discover.enableLocation")}</h3>
-          <button className="btn btn-primary" onClick={() => {
-            navigator.geolocation.getCurrentPosition(
-              (pos) => { setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocationDenied(false); },
-              () => {}
-            );
-          }}>{t("discover.enableLocation")}</button>
-        </div>
-      </div>
-    );
-  }
-
-  // Not logged in
-  if (!user) {
-    return (
-      <div className="discover-page">
-        <div className="page-header">
-          <h1>{t("discover.title")}</h1>
-          <p>{t("discover.subtitle")}</p>
-        </div>
-        <div className="discover-empty">
-          <div className="discover-empty-icon">👋</div>
-          <h3>{t("nav.login")}</h3>
-          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => onNavigate("login")}>{t("nav.login")}</button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="discover-page">
-      <div className="page-header">
-        <h1>{t("discover.title")}</h1>
-        <p>{t("discover.subtitle")}</p>
-      </div>
+      {locationDenied && (
+        <div className="discover-location-banner" onClick={() => {
+          navigator.geolocation?.getCurrentPosition(
+            (pos) => { setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocationDenied(false); },
+            () => {}
+          );
+        }}>
+          📍 {t("discover.locationBanner")}
+        </div>
+      )}
 
       {/* Filter toggle */}
       <div className="discover-filter-toggle">
@@ -2082,6 +1983,7 @@ function DiscoverPage({ user, onNavigate }) {
           <div className="discover-empty-icon">🔍</div>
           <h3>{t("discover.noMore")}</h3>
           <p>{t("discover.noMoreHint")}</p>
+          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => onNavigate("search")}>{t("discover.browseAll")}</button>
         </div>
       ) : (
         <>
@@ -2396,7 +2298,7 @@ function LoginPage({ onNavigate }) {
     setSubmitting(true);
     const { error: err } = await supabase.auth.signInWithPassword({ email, password });
     if (err) { setError(err.message); setSubmitting(false); return; }
-    onNavigate("events");
+    onNavigate("discover");
   };
 
   return (
@@ -2451,7 +2353,7 @@ function RegisterPage({ onNavigate }) {
       options: { data: { name } },
     });
     if (err) { setError(err.message); setSubmitting(false); return; }
-    onNavigate("events");
+    onNavigate("discover");
   };
 
   return (
@@ -2737,6 +2639,7 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [pendingFollows, setPendingFollows] = useState([]);
+  const [userVenues, setUserVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [activeTab, setActiveTab] = useState("going");
@@ -2751,7 +2654,7 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
 
   const loadData = useCallback(async () => {
     if (!user) return;
-    const [created, attending, interested, photosRes, profileRes, followersRes, followingRes, pendingRes] = await Promise.all([
+    const [created, attending, interested, photosRes, profileRes, followersRes, followingRes, pendingRes, venuesRes] = await Promise.all([
       supabase.from("events").select("*").eq("creator_id", user.id),
       supabase.from("rsvps").select("events(*)").eq("user_id", user.id).eq("status", "going"),
       supabase.from("rsvps").select("events(*)").eq("user_id", user.id).eq("status", "interested"),
@@ -2760,6 +2663,7 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
       supabase.from("follows").select("id", { count: "exact" }).eq("following_id", user.id).eq("status", "active"),
       supabase.from("follows").select("id", { count: "exact" }).eq("follower_id", user.id).eq("status", "active"),
       supabase.from("follows").select("*, follower:profiles!follower_id(id, name, avatar_url)").eq("following_id", user.id).eq("status", "pending"),
+      supabase.from("venue_staff").select("venue:venues(*)").eq("user_id", user.id),
     ]);
     setCreatedEvents(created.data || []);
     setAttendingEvents((attending.data || []).map((r) => r.events).filter(Boolean));
@@ -2771,6 +2675,7 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
     setFollowerCount(followersRes.count || 0);
     setFollowingCount(followingRes.count || 0);
     setPendingFollows(pendingRes.data || []);
+    setUserVenues((venuesRes.data || []).map((d) => d.venue).filter(Boolean));
     setLoading(false);
   }, [user]);
 
@@ -2947,6 +2852,40 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
         </select>
       </div>
 
+      {/* Organizer tools */}
+      <div className="profile-organizer-section">
+        <h3>{t("profile.organizerTools")}</h3>
+        <div className="organizer-actions">
+          <button className="btn btn-primary btn-sm" onClick={() => onNavigate("create-event")}>+ {t("nav.newEvent")}</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("venue-register")}>+ {t("nav.registerVenue")}</button>
+        </div>
+        {createdEvents.length > 0 && (
+          <div className="organizer-list">
+            <h4>{t("profile.myEventsTab")} ({createdEvents.length})</h4>
+            {createdEvents.slice(0, 5).map((e) => (
+              <div key={e.id} className="organizer-list-item" onClick={() => onNavigate("event-detail", { eventId: e.id })}>
+                <span>{e.title}</span>
+                <button className="btn btn-secondary btn-sm" onClick={(ev) => { ev.stopPropagation(); onNavigate("edit-event", { eventId: e.id }); }}>{t("detail.edit")}</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {userVenues.length > 0 && (
+          <div className="organizer-list">
+            <h4>{t("nav.venues")} ({userVenues.length})</h4>
+            {userVenues.map((v) => (
+              <div key={v.id} className="organizer-list-item" onClick={() => onNavigate("venue-detail", { venueId: v.id })}>
+                <span>{v.name}</span>
+                <button className="btn btn-secondary btn-sm" onClick={(ev) => { ev.stopPropagation(); onNavigate("venue-manage", { venueId: v.id }); }}>{t("profile.manageVenue")}</button>
+              </div>
+            ))}
+          </div>
+        )}
+        {createdEvents.length === 0 && userVenues.length === 0 && (
+          <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 8 }}>{t("profile.getStarted")}</p>
+        )}
+      </div>
+
       {/* Tabs */}
       <div className="profile-tabs">
         <div className="filter-tabs">
@@ -2982,7 +2921,7 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
                 {activeTab === "going" ? "🎟️" : activeTab === "interested" ? "💫" : "🎪"}
               </div>
               <p>{activeTab === "going" ? t("profile.noAttending") : activeTab === "interested" ? t("profile.noInterested") : t("profile.noEvents")}</p>
-              <button className="btn btn-primary" onClick={() => onNavigate(activeTab === "created" ? "create-event" : activeTab === "interested" ? "discover" : "events")}>
+              <button className="btn btn-primary" onClick={() => onNavigate(activeTab === "created" ? "create-event" : "discover")}>
                 {activeTab === "going" ? t("profile.findEvents") : activeTab === "interested" ? t("profile.discoverEvents") : t("profile.createFirst")}
               </button>
             </div>
@@ -2997,6 +2936,14 @@ function ProfilePage({ user, onNavigate, onAvatarChange }) {
         </button>
         {prefsOpen && <NotificationPreferences user={user} />}
       </div>
+
+      <button className="btn btn-secondary btn-full" style={{ marginTop: 24 }} onClick={async () => {
+        await supabase.auth.signOut();
+        onNavigate("discover");
+        window.location.reload();
+      }}>
+        {t("profile.logout")}
+      </button>
     </div>
   );
 }
@@ -3112,27 +3059,22 @@ function VenueDetailPage({ venueId, user, onNavigate }) {
     const isSoldOut = spotsLeft <= 0;
     const hasBooking = ts.my_booking && ts.my_booking.id;
     return (
-      <div key={ts.id} className={`timeslot-card ${isSoldOut ? "sold-out" : ""}`}>
+      <div key={ts.id} className={`timeslot-card-v2 ${isSoldOut ? "sold-out" : ""} ${hasBooking ? "booked" : ""}`}
+        onClick={() => {
+          if (hasBooking || isSoldOut) return;
+          if (!user) return onNavigate("login");
+          setPurchaseTimeslot(ts);
+        }}
+        style={{ cursor: hasBooking || isSoldOut ? "default" : "pointer" }}
+      >
         {ts.type === "table" && ts.label && <div className="timeslot-card-label">{ts.label}</div>}
         <div className="timeslot-card-time">{ts.start_time?.slice(0, 5)} – {ts.end_time?.slice(0, 5)}</div>
         {ts.description && <div className="timeslot-card-desc">{ts.description}</div>}
         <div className="timeslot-card-footer">
           <span className="timeslot-card-price">{formatPrice(ts.price)}</span>
           <span className={`timeslot-card-spots ${isSoldOut ? "sold-out" : ""}`}>
-            {isSoldOut ? t("timeslot.soldOut") : `${spotsLeft} ${t("timeslot.spotsLeft")}`}
+            {hasBooking ? t("booking.alreadyBooked") : isSoldOut ? t("timeslot.soldOut") : `${spotsLeft} ${t("timeslot.spotsLeft")}`}
           </span>
-        </div>
-        <div style={{ marginTop: 12 }}>
-          {hasBooking ? (
-            <button className="btn btn-secondary btn-sm" disabled>{t("booking.alreadyBooked")}</button>
-          ) : isSoldOut ? null : (
-            <button className="btn btn-primary btn-sm" onClick={() => {
-              if (!user) return onNavigate("login");
-              setPurchaseTimeslot(ts);
-            }}>
-              {t("booking.buyFor")} {formatPrice(ts.price)}
-            </button>
-          )}
         </div>
       </div>
     );
@@ -4142,7 +4084,7 @@ export default function App() {
   const logout = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    navigate("events");
+    navigate("discover");
   };
 
   if (loading) return <div className="loading">{t("loading")}</div>;
@@ -4152,9 +4094,8 @@ export default function App() {
       <div>
         <Navbar user={user} currentPage={page} onNavigate={navigate} onLogout={logout} />
 
-        {page === "events" && <EventsPage onNavigate={navigate} />}
         {page === "discover" && <DiscoverPage user={user} onNavigate={navigate} />}
-        {page === "map" && <MapPage onNavigate={navigate} />}
+        {page === "search" && <SearchBrowsePage onNavigate={navigate} initialView={pageData.view} />}
         {page === "event-detail" && <EventDetailPage eventId={pageData.eventId} user={user} onNavigate={navigate} />}
         {page === "checkin" && <CheckinPage eventId={pageData.eventId} user={user} onNavigate={navigate} />}
         {page === "create-event" && <EventFormPage user={user} onNavigate={navigate} />}

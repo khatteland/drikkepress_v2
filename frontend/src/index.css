@@ -4441,3 +4441,240 @@ body {
   color: #16a34a;
   margin-bottom: 4px;
 }
+
+/* ============================================================
+   SEARCH/BROWSE PAGE
+   ============================================================ */
+
+.search-browse-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px 16px 100px;
+}
+
+.search-browse-header {
+  margin-bottom: 20px;
+}
+
+.search-browse-header h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.search-browse-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.search-browse-controls input[type="text"] {
+  flex: 1;
+  min-width: 160px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background: var(--card-bg);
+}
+
+.search-browse-controls select {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background: var(--card-bg);
+}
+
+.view-toggle {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.view-toggle-btn {
+  padding: 10px 16px;
+  border: none;
+  background: var(--card-bg);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  color: var(--text-secondary);
+}
+
+.view-toggle-btn.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* ============================================================
+   DISCOVER LOCATION BANNER
+   ============================================================ */
+
+.discover-location-banner {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  text-align: center;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.discover-location-banner:hover {
+  background: #fde68a;
+}
+
+/* ============================================================
+   EVENT DETAIL — COLLAPSIBLE SECTIONS
+   ============================================================ */
+
+.detail-section-toggle {
+  width: 100%;
+  padding: 14px 0;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-primary);
+  list-style: none;
+}
+
+.detail-section-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.detail-section-toggle::after {
+  content: "▼";
+  float: right;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+}
+
+details[open] > .detail-section-toggle::after {
+  transform: rotate(180deg);
+}
+
+.detail-attendees-collapsible {
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+}
+
+.detail-admin-section {
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 0 16px;
+}
+
+.detail-admin-content {
+  padding-bottom: 16px;
+}
+
+.detail-admin-content .event-actions {
+  margin-bottom: 16px;
+}
+
+/* ============================================================
+   PROFILE — ORGANIZER TOOLS
+   ============================================================ */
+
+.profile-organizer-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.profile-organizer-section h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.organizer-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.organizer-list {
+  margin-top: 12px;
+}
+
+.organizer-list h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.organizer-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.organizer-list-item:last-child {
+  border-bottom: none;
+}
+
+.organizer-list-item:hover {
+  color: var(--primary);
+}
+
+/* ============================================================
+   TIMESLOT CARD V2 (tappable product card)
+   ============================================================ */
+
+.timeslot-card-v2 {
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.timeslot-card-v2:hover:not(.sold-out):not(.booked) {
+  border-color: var(--primary);
+  box-shadow: 0 2px 12px rgba(255, 107, 53, 0.15);
+}
+
+.timeslot-card-v2:active:not(.sold-out):not(.booked) {
+  border-color: var(--primary);
+  box-shadow: 0 1px 4px rgba(255, 107, 53, 0.2);
+  transform: scale(0.98);
+}
+
+.timeslot-card-v2.sold-out {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.timeslot-card-v2.booked {
+  border-color: #22c55e;
+  background: #f0fdf4;
+}
+
+@media (max-width: 600px) {
+  .search-browse-controls {
+    flex-direction: column;
+  }
+  .search-browse-controls input[type="text"],
+  .search-browse-controls select {
+    width: 100%;
+  }
+}
