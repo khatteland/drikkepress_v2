@@ -421,6 +421,18 @@ export const translations = {
     "venue.availability": "Tilgjengelighet",
     "venue.noTimeslotsDate": "Ingenting tilgjengelig denne datoen",
 
+    // Friends on events
+    "events.friendsGoing": "venner skal dit",
+    "events.others": "andre",
+
+    // Venue follow
+    "venue.follow": "Følg",
+    "venue.unfollow": "Slutt å følge",
+    "venue.followers": "følgere",
+
+    // Venue notifications
+    "notif.venue_new_timeslot": "har lagt til nye datoer",
+
     // Search/Browse
     "nav.search": "Søk",
     "search.viewList": "Liste",
@@ -861,6 +873,18 @@ export const translations = {
     "table.labelPlaceholder": "e.g. Table 1, VIP booth",
     "venue.availability": "Availability",
     "venue.noTimeslotsDate": "Nothing available on this date",
+
+    // Friends on events
+    "events.friendsGoing": "friends going",
+    "events.others": "others",
+
+    // Venue follow
+    "venue.follow": "Follow",
+    "venue.unfollow": "Unfollow",
+    "venue.followers": "followers",
+
+    // Venue notifications
+    "notif.venue_new_timeslot": "added new dates",
 
     // Search/Browse
     "nav.search": "Search",

@@ -4698,6 +4698,51 @@ details[open] > .detail-section-toggle::after {
   background: #f0fdf4;
 }
 
+/* ============================================================
+   EVENT CARD — FRIENDS
+   ============================================================ */
+
+.event-card-friends {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.event-card-friends .avatar-stack {
+  display: flex;
+  align-items: center;
+}
+
+.event-card-friends .avatar-stack .avatar-img,
+.event-card-friends .avatar-stack .avatar {
+  margin-left: -6px;
+  border: 2px solid white;
+  border-radius: 50%;
+}
+
+.event-card-friends .avatar-stack .avatar-img:first-child,
+.event-card-friends .avatar-stack .avatar:first-child {
+  margin-left: 0;
+}
+
+/* ============================================================
+   VENUE FOLLOW
+   ============================================================ */
+
+.venue-follow-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.venue-follower-count {
+  font-size: 0.9rem;
+  color: #666;
+}
+
 @media (max-width: 600px) {
   .search-browse-controls {
     flex-direction: column;

@@ -472,6 +472,8 @@ function NotificationBell({ user, onNavigate }) {
     setOpen(false);
     if (notif.type === "follow_request" || notif.type === "follow_accepted") {
       onNavigate("user-profile", { userId: notif.actor_id });
+    } else if (notif.type === "venue_new_timeslot") {
+      onNavigate("venue-detail", { venueId: notif.venue_id });
     } else {
       onNavigate("event-detail", { eventId: notif.event_id });
     }
@@ -495,6 +497,7 @@ function NotificationBell({ user, onNavigate }) {
       case "kicked": return <><strong>{actor}</strong> {t("notif.kicked")}</>;
       case "follow_request": return <><strong>{actor}</strong> {t("notif.follow_request")}</>;
       case "follow_accepted": return <><strong>{actor}</strong> {t("notif.follow_accepted")}</>;
+      case "venue_new_timeslot": return <><strong>{notif.message}</strong> {t("notif.venue_new_timeslot")}</>;
       default: return notif.type;
     }
   };
@@ -654,6 +657,8 @@ function NotificationDropdown({ notifications, unreadCount, onNavigate, onMarkAl
       onNavigate("user-profile", { userId: notif.actor_id });
     } else if (notif.type === "booking_confirmed" || notif.type === "booking_cancelled") {
       onNavigate("my-tickets");
+    } else if (notif.type === "venue_new_timeslot") {
+      onNavigate("venue-detail", { venueId: notif.venue_id });
     } else {
       onNavigate("event-detail", { eventId: notif.event_id });
     }
@@ -674,6 +679,7 @@ function NotificationDropdown({ notifications, unreadCount, onNavigate, onMarkAl
       case "follow_accepted": return <><strong>{actor}</strong> {t("notif.follow_accepted")}</>;
       case "booking_confirmed": return t("notif.booking_confirmed");
       case "booking_cancelled": return t("notif.booking_cancelled");
+      case "venue_new_timeslot": return <><strong>{notif.message}</strong> {t("notif.venue_new_timeslot")}</>;
       default: return notif.type;
     }
   };
@@ -770,6 +776,10 @@ function Navbar({ user, currentPage, onNavigate, onLogout }) {
 
 function EventCard({ event, onClick }) {
   const { t, lang } = useI18n();
+  const friendCount = event.friend_count || 0;
+  const otherCount = Math.max(0, (event.going_count || 0) - friendCount);
+  const friendAvatars = event.friend_preview || [];
+
   return (
     <div className="event-card" onClick={onClick}>
       {event.image_url && <img className="event-card-image" src={event.image_url} alt={event.title} />}
@@ -780,9 +790,25 @@ function EventCard({ event, onClick }) {
           <span>{event.time?.slice(0, 5)}{event.end_time ? ` – ${event.end_time.slice(0, 5)}` : ""} · {event.location}</span>
         </div>
         <div className="event-card-footer">
-          <div className="event-card-attendees">
-            <strong>{event.going_count || 0}</strong> {t("events.attending")}
-          </div>
+          {friendCount > 0 ? (
+            <div className="event-card-friends">
+              {friendAvatars.length > 0 && (
+                <div className="avatar-stack">
+                  {friendAvatars.slice(0, 3).map((a, i) => (
+                    <Avatar key={i} name={a.name} avatarUrl={a.avatar_url} size={22} />
+                  ))}
+                </div>
+              )}
+              <span>
+                <strong>{friendCount}</strong> {t("events.friendsGoing")}
+                {otherCount > 0 && <> + <strong>{otherCount}</strong> {t("events.others")}</>}
+              </span>
+            </div>
+          ) : (
+            <div className="event-card-attendees">
+              <strong>{event.going_count || 0}</strong> {t("events.attending")}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -793,7 +819,7 @@ function EventCard({ event, onClick }) {
 // SEARCH & BROWSE PAGE (replaces Events + Map)
 // ============================================================
 
-function SearchBrowsePage({ onNavigate, initialView }) {
+function SearchBrowsePage({ user, onNavigate, initialView }) {
   const { t, lang } = useI18n();
   const [events, setEvents] = useState([]);
   const [venues, setVenues] = useState([]);
@@ -802,8 +828,18 @@ function SearchBrowsePage({ onNavigate, initialView }) {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState(initialView || "list");
   const [tab, setTab] = useState("events");
+  const [followingSet, setFollowingSet] = useState(new Set());
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+
+  // Fetch user's following list
+  useEffect(() => {
+    if (!user) { setFollowingSet(new Set()); return; }
+    supabase.from("follows").select("following_id").eq("follower_id", user.id).eq("status", "active")
+      .then(({ data }) => {
+        setFollowingSet(new Set((data || []).map((f) => f.following_id)));
+      });
+  }, [user]);
 
   // Fetch events
   useEffect(() => {
@@ -813,7 +849,7 @@ function SearchBrowsePage({ onNavigate, initialView }) {
 
     let query = supabase
       .from("events")
-      .select("*, creator:profiles!creator_id(name), rsvps(status)")
+      .select("*, creator:profiles!creator_id(name), rsvps(status, user_id)")
       .eq("visibility", "public")
       .gte("date", today)
       .order("date", { ascending: true });
@@ -825,18 +861,41 @@ function SearchBrowsePage({ onNavigate, initialView }) {
       query = query.eq("category", category);
     }
 
-    query.then(({ data, error }) => {
+    query.then(async ({ data, error }) => {
       if (error) { setEvents([]); setLoading(false); return; }
-      const enriched = (data || []).map((e) => ({
-        ...e,
-        creator_name: e.creator?.name || "?",
-        going_count: e.rsvps?.filter((r) => r.status === "going").length || 0,
-        interested_count: e.rsvps?.filter((r) => r.status === "interested").length || 0,
-      }));
+
+      // Collect friend user IDs from RSVPs
+      const friendUserIds = new Set();
+      (data || []).forEach((e) => {
+        (e.rsvps || []).forEach((r) => {
+          if (followingSet.has(r.user_id)) friendUserIds.add(r.user_id);
+        });
+      });
+
+      // Fetch friend profiles for avatars
+      let friendProfiles = {};
+      if (friendUserIds.size > 0) {
+        const { data: profiles } = await supabase.from("profiles").select("id, name, avatar_url").in("id", [...friendUserIds]);
+        (profiles || []).forEach((p) => { friendProfiles[p.id] = p; });
+      }
+
+      const enriched = (data || []).map((e) => {
+        const rsvps = e.rsvps || [];
+        const friendRsvps = rsvps.filter((r) => followingSet.has(r.user_id) && (r.status === "going" || r.status === "interested"));
+        const friendPreview = friendRsvps.slice(0, 3).map((r) => friendProfiles[r.user_id]).filter(Boolean);
+        return {
+          ...e,
+          creator_name: e.creator?.name || "?",
+          going_count: rsvps.filter((r) => r.status === "going").length || 0,
+          interested_count: rsvps.filter((r) => r.status === "interested").length || 0,
+          friend_count: friendRsvps.length,
+          friend_preview: friendPreview,
+        };
+      });
       setEvents(enriched);
       setLoading(false);
     });
-  }, [search, category, tab]);
+  }, [search, category, tab, followingSet]);
 
   // Fetch venues
   useEffect(() => {
@@ -1848,12 +1907,20 @@ function DiscoverPage({ user, onNavigate }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [swipeDir, setSwipeDir] = useState(null);
+  const [followingSet, setFollowingSet] = useState(new Set());
 
   // Pointer state refs (no re-render needed)
   const dragRef = useRef({ startX: 0, startY: 0, currentX: 0, isDragging: false });
   const cardRef = useRef(null);
   const indicatorRightRef = useRef(null);
   const indicatorLeftRef = useRef(null);
+
+  // Fetch user's following list for friend display
+  useEffect(() => {
+    if (!user) { setFollowingSet(new Set()); return; }
+    supabase.from("follows").select("following_id").eq("follower_id", user.id).eq("status", "active")
+      .then(({ data }) => { setFollowingSet(new Set((data || []).map((f) => f.following_id))); });
+  }, [user]);
 
   // Request geolocation on mount
   useEffect(() => {
@@ -1868,6 +1935,7 @@ function DiscoverPage({ user, onNavigate }) {
   useEffect(() => {
     setLoading(true);
     if (userLocation) {
+      // RPC returns friend_count + friend_preview from server
       supabase.rpc("get_discover_events", {
         p_lat: userLocation.lat,
         p_lng: userLocation.lng,
@@ -1882,17 +1950,38 @@ function DiscoverPage({ user, onNavigate }) {
         setLoading(false);
       });
     } else if (locationDenied) {
-      // Fallback: fetch events without location
+      // Fallback: fetch events without location, compute friends client-side
       const today = new Date().toISOString().split("T")[0];
-      let q = supabase.from("events").select("id, title, date, time, location, category, image_url").eq("visibility", "public").gte("date", today).order("date").limit(20);
+      let q = supabase.from("events").select("id, title, date, time, location, category, image_url, rsvps(status, user_id)").eq("visibility", "public").gte("date", today).order("date").limit(20);
       if (category) q = q.eq("category", category);
-      q.then(({ data }) => {
-        setCards((data || []).map((e) => ({ ...e, going_count: 0, attendee_preview: [] })));
+      q.then(async ({ data }) => {
+        const evts = data || [];
+        // Collect friend user IDs
+        const friendUserIds = new Set();
+        evts.forEach((e) => {
+          (e.rsvps || []).forEach((r) => { if (followingSet.has(r.user_id)) friendUserIds.add(r.user_id); });
+        });
+        let friendProfiles = {};
+        if (friendUserIds.size > 0) {
+          const { data: profiles } = await supabase.from("profiles").select("id, name, avatar_url").in("id", [...friendUserIds]);
+          (profiles || []).forEach((p) => { friendProfiles[p.id] = p; });
+        }
+        setCards(evts.map((e) => {
+          const rsvps = e.rsvps || [];
+          const friendRsvps = rsvps.filter((r) => followingSet.has(r.user_id) && (r.status === "going" || r.status === "interested"));
+          return {
+            ...e,
+            going_count: rsvps.filter((r) => r.status === "going").length,
+            attendee_preview: [],
+            friend_count: friendRsvps.length,
+            friend_preview: friendRsvps.slice(0, 3).map((r) => friendProfiles[r.user_id]).filter(Boolean),
+          };
+        }));
         setCurrentIndex(0);
         setLoading(false);
       });
     }
-  }, [userLocation, locationDenied, radius, dateFrom, dateTo, category]);
+  }, [userLocation, locationDenied, radius, dateFrom, dateTo, category, followingSet]);
 
   const currentCard = cards[currentIndex];
   const behindCard1 = cards[currentIndex + 1];
@@ -1951,6 +2040,47 @@ function DiscoverPage({ user, onNavigate }) {
     }
   };
 
+  const renderCardFooter = (card) => {
+    const fc = card.friend_count || 0;
+    const oc = Math.max(0, (card.going_count || 0) - fc);
+    const fp = card.friend_preview || [];
+    if (fc > 0) {
+      return (
+        <div className="discover-card-footer">
+          <div className="discover-card-attendees">
+            {fp.length > 0 && (
+              <div className="avatar-stack">
+                {fp.slice(0, 3).map((a, i) => (
+                  <Avatar key={i} name={a.name} avatarUrl={a.avatar_url} size={24} />
+                ))}
+              </div>
+            )}
+            <div className="discover-card-stats">
+              <strong>{fc}</strong> {t("events.friendsGoing")}
+              {oc > 0 && <> + <strong>{oc}</strong> {t("events.others")}</>}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="discover-card-footer">
+        <div className="discover-card-attendees">
+          {card.attendee_preview && card.attendee_preview.length > 0 && (
+            <div className="avatar-stack">
+              {card.attendee_preview.slice(0, 5).map((a, i) => (
+                <Avatar key={i} name={a.name} avatarUrl={a.avatar_url} size={24} />
+              ))}
+            </div>
+          )}
+          <div className="discover-card-stats">
+            <strong>{card.going_count || 0}</strong> {t("discover.going")}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderCard = (card, className, ref) => (
     <div className={`discover-card ${className}`} ref={ref} key={card.id}>
       {card.image_url ? (
@@ -1975,20 +2105,7 @@ function DiscoverPage({ user, onNavigate }) {
           <span>{formatDate(card.date, lang)}</span>
           <span>{card.time?.slice(0, 5)} · {card.area_name}</span>
         </div>
-        <div className="discover-card-footer">
-          <div className="discover-card-attendees">
-            {card.attendee_preview && card.attendee_preview.length > 0 && (
-              <div className="avatar-stack">
-                {card.attendee_preview.slice(0, 5).map((a, i) => (
-                  <Avatar key={i} name={a.name} avatarUrl={a.avatar_url} size={24} />
-                ))}
-              </div>
-            )}
-            <div className="discover-card-stats">
-              <strong>{card.going_count || 0}</strong> {t("discover.going")}
-            </div>
-          </div>
-        </div>
+        {renderCardFooter(card)}
       </div>
     </div>
   );
@@ -2086,20 +2203,7 @@ function DiscoverPage({ user, onNavigate }) {
                   <span>{formatDate(currentCard.date, lang)}</span>
                   <span>{currentCard.time?.slice(0, 5)} · {currentCard.area_name}</span>
                 </div>
-                <div className="discover-card-footer">
-                  <div className="discover-card-attendees">
-                    {currentCard.attendee_preview && currentCard.attendee_preview.length > 0 && (
-                      <div className="avatar-stack">
-                        {currentCard.attendee_preview.slice(0, 5).map((a, i) => (
-                          <Avatar key={i} name={a.name} avatarUrl={a.avatar_url} size={24} />
-                        ))}
-                      </div>
-                    )}
-                    <div className="discover-card-stats">
-                      <strong>{currentCard.going_count || 0}</strong> {t("discover.going")}
-                    </div>
-                  </div>
-                </div>
+                {renderCardFooter(currentCard)}
               </div>
             </div>
           </div>
@@ -3089,10 +3193,17 @@ function VenueDetailPage({ venueId, user, onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [purchaseTimeslot, setPurchaseTimeslot] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
 
   const loadVenue = useCallback(() => {
     supabase.rpc("get_venue_detail", { p_venue_id: venueId }).then(({ data }) => {
       setVenue(data);
+      if (data) {
+        setIsFollowing(data.is_following || false);
+        setFollowerCount(data.follower_count || 0);
+      }
       // Auto-select first available date
       if (data && data.timeslots && data.timeslots.length > 0) {
         const dates = [...new Set(data.timeslots.map((ts) => ts.date))].sort();
@@ -3101,6 +3212,22 @@ function VenueDetailPage({ venueId, user, onNavigate }) {
       setLoading(false);
     });
   }, [venueId]);
+
+  const handleToggleFollow = async () => {
+    if (!user) { onNavigate("login"); return; }
+    setFollowLoading(true);
+    const { data } = await supabase.rpc("toggle_venue_follow", { p_venue_id: venueId });
+    if (data && data.status === "ok") {
+      if (data.action === "followed") {
+        setIsFollowing(true);
+        setFollowerCount((c) => c + 1);
+      } else {
+        setIsFollowing(false);
+        setFollowerCount((c) => Math.max(0, c - 1));
+      }
+    }
+    setFollowLoading(false);
+  };
 
   useEffect(() => { loadVenue(); }, [loadVenue]);
 
@@ -3178,6 +3305,19 @@ function VenueDetailPage({ venueId, user, onNavigate }) {
           {venue.contact_phone && <span>📞 {venue.contact_phone}</span>}
         </div>
         {venue.description && <p>{venue.description}</p>}
+      </div>
+
+      <div className="venue-follow-section">
+        <button
+          className={`btn ${isFollowing ? "btn-secondary" : "btn-primary"}`}
+          onClick={handleToggleFollow}
+          disabled={followLoading}
+        >
+          {isFollowing ? t("venue.unfollow") : t("venue.follow")}
+        </button>
+        <span className="venue-follower-count">
+          <strong>{followerCount}</strong> {t("venue.followers")}
+        </span>
       </div>
 
       {venue.is_staff && (
@@ -4159,7 +4299,7 @@ export default function App() {
         <Navbar user={user} currentPage={page} onNavigate={navigate} onLogout={logout} />
 
         {page === "discover" && <DiscoverPage user={user} onNavigate={navigate} />}
-        {page === "search" && <SearchBrowsePage onNavigate={navigate} initialView={pageData.view} />}
+        {page === "search" && <SearchBrowsePage user={user} onNavigate={navigate} initialView={pageData.view} />}
         {page === "event-detail" && <EventDetailPage eventId={pageData.eventId} user={user} onNavigate={navigate} />}
         {page === "checkin" && <CheckinPage eventId={pageData.eventId} user={user} onNavigate={navigate} />}
         {page === "create-event" && <EventFormPage user={user} onNavigate={navigate} />}
